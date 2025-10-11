@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Tabs, Button, message } from 'antd';
-import { ArrowLeftOutlined, CalendarOutlined } from '@ant-design/icons';
+import { CalendarOutlined } from '@ant-design/icons';
 import Header from '../components/Header';
 import TimelineView from '../components/TimelineView';
 import WeatherWidget from '../components/WeatherWidget';

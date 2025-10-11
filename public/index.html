@@ -7,7 +7,12 @@
     <meta name="description" content="JourneyBox - AI智能旅行规划助手，为您定制专属的旅行体验" />
     <title>JourneyBox - 智能旅行规划助手</title>
     <!-- 高德地图API -->
-    <script src="https://webapi.amap.com/maps?v=2.0&key=%REACT_APP_AMAP_API_KEY%"></script>
+    <script type="text/javascript">
+      window._AMapSecurityConfig = {
+        securityJsCode: 'c1148b993f8864bf80a64cedd915f989',
+      };
+    </script>
+    <script src="https://webapi.amap.com/maps?v=2.0&key=c45c41f24f40ee717d440ef282599dfc&plugin=AMap.PlaceSearch,AMap.Geocoder,AMap.Driving,AMap.Walking,AMap.Transfer"></script>
   </head>
   <body>
     <noscript>您需要启用JavaScript来运行此应用程序。</noscript>

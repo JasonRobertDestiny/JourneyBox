@@ -5,7 +5,7 @@ import Header from '../components/Header';
 import { useAuth } from '../contexts/AuthContext';
 import { updateUserProfile, getCurrentUserPosts, getUserLikedPosts } from '../api/userService';
 import { getAllTrips } from '../api/tripService';
-import { getAllPosts as getCommunityPosts, getUserLikedPosts as getCommunityLikedPosts } from '../api/communityService';
+import { getAllPosts } from '../api/communityService';
 import { getDestinationImage, handleImageError, getCommunityPostImage, handleCommunityImageError } from '../utils/imageUtils';
 import '../styles/ProfilePage.css';
 import { Link } from 'react-router-dom';
@@ -26,8 +26,7 @@ function ProfilePage() {
   const [likedPosts, setLikedPosts] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [selectedTab, setSelectedTab] = useState('myPosts'); // 'myPosts' or 'likedPosts'
-  const [favorites, setFavorites] = useState([]);
-  const [activeTab, setActiveTab] = useState('profile');
+  const [activeTab] = useState('profile');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   
   const navigate = useNavigate();
@@ -179,6 +178,7 @@ function ProfilePage() {
     } else if (activeTab === 'liked') {
       loadLikedPosts();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
   
   const loadUserPosts = async () => {
@@ -252,12 +252,7 @@ function ProfilePage() {
   const handleTripClick = (tripId) => {
     navigate(`/trip/${tripId}`);
   };
-  
-  const handleViewPost = (postId) => {
-    // 导航到帖子详情页，此功能将在后续实现
-    navigate(`/posts/${postId}`);
-  };
-  
+
   // 渲染用户帖子卡片 - 增强版，支持点赞状态显示
   const renderPostCard = (post, isLiked = false) => (
     <motion.div 

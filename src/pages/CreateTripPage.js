@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
-import { Modal, Select, Slider, Radio, Tag, Checkbox, Divider } from 'antd';
+import { Modal, Select, Slider, Radio, Tag, Divider } from 'antd';
 import { createTrip } from '../api/tripService';
 import '../styles/CreateTripPage.css';
 
-const { Option } = Select;
 const { CheckableTag } = Tag;
 
 function CreateTripPage() {

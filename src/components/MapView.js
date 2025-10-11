@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { EnvironmentOutlined, LoadingOutlined } from '@ant-design/icons';
-import { initMap, addMarker, drawRoute, setCenterAndZoom, clearMap, destroyMap, isAmapLoaded } from '../api/mapService';
+import { initMap, addMarker, drawRoute, destroyMap, isAmapLoaded } from '../api/mapService';
 import '../styles/MapView.css';
 
 function MapView({ activities, destination }) {
