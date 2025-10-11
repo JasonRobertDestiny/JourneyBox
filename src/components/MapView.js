@@ -98,7 +98,7 @@ function MapView({ activities, destination }) {
             <ul>
               {activities.map((activity, index) => (
                 <li key={index}>
-                  <EnvironmentOutlined /> {activity.name} - {activity.location}
+                  <EnvironmentOutlined /> {activity.name} {activity.address && `- ${activity.address}`}
                 </li>
               ))}
             </ul>

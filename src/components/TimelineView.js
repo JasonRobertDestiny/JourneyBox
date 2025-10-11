@@ -30,9 +30,9 @@ function ActivityCard({ activity }) {
         )}
       </div>
       <h4 className="activity-name">{activity.name}</h4>
-      {activity.location && (
+      {activity.address && (
         <p className="activity-location">
-          <EnvironmentOutlined /> {activity.location}
+          <EnvironmentOutlined /> {activity.address}
         </p>
       )}
       {activity.description && (

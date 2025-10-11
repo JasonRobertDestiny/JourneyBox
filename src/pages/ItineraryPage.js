@@ -43,6 +43,7 @@ import { searchPlaceImages } from '../api/unsplashService';
 import UnsplashImage from '../components/UnsplashImage';
 import UnsplashAttribution from '../components/UnsplashAttribution';
 import LoadingScreen from '../components/LoadingScreen';
+import GeneratingAnimation from '../components/GeneratingAnimation';
 
 const { TabPane } = Tabs;
 const { Option } = Select;
@@ -138,7 +139,7 @@ function ItineraryPage() {
           localStorage.removeItem('useLocalImages');
           
           // 重新生成行程
-          generateAiTripPlan();
+          generateAiTripPlan(tripDetails?.tripInfo);
         }
       });
     }
@@ -171,7 +172,7 @@ function ItineraryPage() {
           setTimeout(() => {
             setIsGenerating(true);
             setGenerationStep(0);
-            console.log("开始生成行程", data);
+            console.log("【FIX-V2】开始生成行程 - 修复版本已应用", data);
           }, 500); // 短暂延迟以确保UI已渲染
         }
       } catch (error) {
@@ -377,38 +378,53 @@ function ItineraryPage() {
     if (isGenerating) {
       // 如果正在生成中但还没开始真正的生成，则调用生成函数
       // 这样可以避免无限循环
-      if (generationStep === 0) {
-        generateAiTripPlan();
+      if (generationStep === 0 && tripDetails) {
+        generateAiTripPlan(tripDetails.tripInfo);
       }
     }
   }, [isGenerating]);
   
   // 调用AI服务生成行程计划
-  const generateAiTripPlan = async () => {
+  const generateAiTripPlan = async (tripInfo = null) => {
     try {
       setIsError(false);
       setIsLoading(true);
       setIsInOfflineMode(false);
       
-      // 准备传给AI的数据
+      // 准备传给AI的数据 - 修复版本（使用传入的tripInfo参数或现有的tripDetails）
+      const tripInfoData = tripInfo || tripDetails?.tripInfo;
+      if (!tripInfoData) {
+        console.error('【FIX-V2】没有行程信息可用');
+        setIsError(true);
+        setIsLoading(false);
+        return;
+      }
+
       const tripData = {
-        destination: tripDetails.tripInfo.destination,
-        startDate: tripDetails.tripInfo.startDate,
-        endDate: tripDetails.tripInfo.endDate,
-        budget: tripDetails.tripInfo.budget || 'medium',
-        interests: tripDetails.tripInfo.interests || ['文化', '历史', '美食'],
-        travelStyle: tripDetails.tripInfo.travelStyle || 'relaxed',
-        participants: tripDetails.tripInfo.participants || ['成人']
+        destination: tripInfoData.destination,
+        startDate: tripInfoData.startDate,
+        endDate: tripInfoData.endDate,
+        budget: tripInfoData.budget || 'medium',
+        interests: tripInfoData.interests || ['文化', '历史', '美食'],
+        travelStyle: tripInfoData.travelStyle || 'relaxed',
+        participants: tripInfoData.participants || ['成人']
       };
       
       // 判断是否强制使用离线模式
       const forceOfflineMode = localStorage.getItem('forceOfflineMode') === 'true';
-      
+
+      // 先清除旧的离线模式标记（如果用户手动点击生成，说明想要真实数据）
+      if (forceOfflineMode) {
+        console.log('检测到离线模式标记，尝试清除并使用在线模式');
+        localStorage.removeItem('forceOfflineMode');
+      }
+
       // 先检查本地存储是否已有该目的地的离线数据
       const offlineKey = `offline_trip_${tripData.destination}_${tripData.startDate}_${tripData.endDate}`;
       const cachedData = localStorage.getItem(offlineKey);
-      
-      if (forceOfflineMode || false) {
+
+      // 永远不自动使用离线模式，除非API真的失败了
+      if (false) {
         console.log('使用离线模式生成行程数据');
         // 使用离线数据
         if (cachedData) {
@@ -431,14 +447,17 @@ function ItineraryPage() {
           });
         }, 1500);
         
-        // 使用模拟数据 
-        setTimeout(() => {
+        // 使用模拟数据
+        setTimeout(async () => {
           const mockData = getMockTravelPlan(tripData);
           localStorage.setItem(offlineKey, JSON.stringify(mockData));
           setItineraryData(mockData);
           setIsLoading(false);
           setIsInOfflineMode(true);
           setOfflineReason('根据用户设置使用离线模式');
+
+          // Process the mock plan to update trip details
+          await processGeneratedPlan(mockData);
         }, generationSteps.length * 1500);
         
         return;
@@ -458,54 +477,75 @@ function ItineraryPage() {
       try {
         // 调用AI生成行程
         const aiResponse = await generateTravelPlan(tripData);
-        
+
         clearInterval(stepInterval);
         setGenerationStep(generationSteps.length - 1);
-        
-        if (aiResponse) {
+
+        if (aiResponse && !aiResponse.error) {
           // 保存到本地存储，以备离线使用
           localStorage.setItem(offlineKey, JSON.stringify(aiResponse));
           setItineraryData(aiResponse);
           setIsLoading(false);
+
+          // Process the generated plan to update trip details
+          await processGeneratedPlan(aiResponse);
         } else {
-          throw new Error('AI返回的数据为空');
+          throw new Error(aiResponse?.error || 'AI返回的数据为空');
         }
       } catch (error) {
         console.error('AI行程生成失败:', error);
         clearInterval(stepInterval);
-        
-        // 标记临时使用离线模式
-        localStorage.setItem('forceOfflineMode', 'true');
-        // 24小时后自动恢复在线模式
-        setTimeout(() => {
-          localStorage.removeItem('forceOfflineMode');
-        }, 24 * 60 * 60 * 1000);
-        
+
+        // 不再自动设置离线模式，让用户可以重试
+        // localStorage.setItem('forceOfflineMode', 'true');
+
         // 检查是否有错误信息
-        let errorMessage = '生成行程时出错，已切换到离线模式。';
+        let errorMessage = '生成行程时出错。';
         if (error.response?.data?.error) {
           errorMessage = error.response.data.error;
-          
+
           // 特殊错误处理
           if (errorMessage.includes('请求频率超限')) {
-            errorMessage = 'API请求频率超限，请稍后再试。我们已自动切换到离线模式，为您生成模拟行程数据。';
+            errorMessage = 'API请求频率超限，请稍等几秒后再试。';
+
+            // 只有在用户确认后才使用离线模式
+            Modal.confirm({
+              title: 'API请求频率超限',
+              content: '当前请求过于频繁，是否使用离线模拟数据查看示例行程？您也可以稍后再试。',
+              okText: '使用离线数据',
+              cancelText: '稍后再试',
+              onOk: async () => {
+                // 用户选择使用离线模式
+                console.log('用户选择使用离线模式');
+                const mockData = getMockTravelPlan(tripData);
+                localStorage.setItem(offlineKey, JSON.stringify(mockData));
+                setItineraryData(mockData);
+                setIsLoading(false);
+                setIsInOfflineMode(true);
+                setOfflineReason('API频率限制，使用模拟数据');
+                await processGeneratedPlan(mockData);
+              },
+              onCancel: () => {
+                // 用户选择稍后再试
+                setIsGenerating(false);
+                setIsLoading(false);
+              }
+            });
+            return; // 提前返回，不自动使用离线模式
           }
         } else if (error.message) {
           errorMessage = error.message;
         }
-        
-        setOfflineReason(errorMessage);
-        
-        // 使用模拟数据
-        console.log('使用离线模式生成行程数据');
-        const mockData = getMockTravelPlan(tripData);
-        
-        // 保存到本地存储
-        localStorage.setItem(offlineKey, JSON.stringify(mockData));
-        
-        setItineraryData(mockData);
-        setIsLoading(false);
-        setIsInOfflineMode(true);
+
+        // 显示错误信息，让用户选择
+        Modal.error({
+          title: '生成失败',
+          content: errorMessage + '\n\n您可以稍后点击"AI生成行程"按钮重试。',
+          onOk: () => {
+            setIsGenerating(false);
+            setIsLoading(false);
+          }
+        });
       }
     } catch (error) {
       console.error('整体行程生成过程失败:', error);
@@ -817,58 +857,82 @@ function ItineraryPage() {
     try {
       // 模拟最后一步的进度
       setGenerationStep(generationSteps.length - 1);
-      
+
       // 准备景点图片
       const attractions = [];
-      
-      // 从生成的行程中提取所有景点
-      const placesToFetch = [];
+
+      // Convert AI-generated plan to tripDetails format
+      const formattedDays = [];
       if (plan.days && plan.days.length > 0) {
-        plan.days.forEach(day => {
+        plan.days.forEach((day, dayIndex) => {
+          const places = [];
+
           if (day.activities) {
-            day.activities.forEach(activity => {
+            day.activities.forEach((activity, actIndex) => {
+              places.push({
+                id: dayIndex * 100 + actIndex + 1,
+                name: activity.name,
+                type: activity.type === '景点' ? 'attraction' :
+                      activity.type === '餐厅' ? 'restaurant' :
+                      activity.type === '交通' ? 'transport' : 'other',
+                timeStart: activity.time || '09:00',
+                timeEnd: activity.time || '10:00',
+                duration: activity.duration,
+                description: activity.description || '',
+                address: activity.location || '',
+                openingHours: '9:00AM - 6:00PM',
+                images: [],
+                location: {
+                  lat: 39.9 + Math.random() * 0.1,
+                  lng: 116.4 + Math.random() * 0.1
+                }
+              });
+
+              // Add to attractions list if it's a scenic spot
               if (activity.type === '景点' || activity.type === 'attraction') {
-                placesToFetch.push(activity.name);
+                attractions.push({
+                  id: attractions.length + 101,
+                  name: activity.name,
+                  rating: 4.5 + Math.random() * 0.5,
+                  reviewCount: Math.floor(Math.random() * 10000) + 500,
+                  address: activity.location || tripDetails.tripInfo.destination,
+                  suggestedDuration: activity.duration || '2-3小时',
+                  isIncluded: true
+                });
               }
             });
           }
+
+          formattedDays.push({
+            day: dayIndex + 1,
+            date: day.date,
+            dailyTimeRange: { start: 9, end: 19 },
+            color: ['#FF5252', '#4CAF50', '#2196F3', '#FFC107', '#9C27B0'][dayIndex % 5],
+            places: places
+          });
         });
       }
-      
-      // 为每个景点获取图片
-      for (const place of placesToFetch) {
-        try {
-          const images = await searchPlaceImages(place, 1);
-          if (images && images.length > 0) {
-            attractions.push({
-              id: attractions.length + 101,
-              name: place,
-              image: images[0].url,
-              imageThumb: images[0].thumb,
-              rating: 4.5 + Math.random() * 0.5, // 模拟评分
-              reviewCount: Math.floor(Math.random() * 10000) + 500, // 模拟评论数
-              location: `${tripDetails.tripInfo.destination}`,
-              suggestedDuration: `${Math.floor(Math.random() * 3) + 1}-${Math.floor(Math.random() * 3) + 2}小时`,
-              isIncluded: true,
-              imageCredit: {
-                photographer: images[0].photographer.name,
-                username: images[0].photographer.username,
-                link: images[0].photographer.link
-              }
-            });
-          }
-        } catch (error) {
-          console.error(`获取景点 ${place} 图片失败:`, error);
+
+      // Update trip details with generated itinerary
+      setTripDetails(prev => ({
+        ...prev,
+        itinerary: {
+          ...prev.itinerary,
+          days: formattedDays,
+          overview: plan.overview || '',
+          tips: plan.tips || '',
+          accommodation: plan.accommodation || '',
+          transportation: plan.transportation || ''
         }
-      }
-      
-      // 更新状态
+      }));
+
+      // 更新景点列表
       setAllAttractions(attractions);
-      
+
       // 延迟一段时间后结束生成过程
       setTimeout(() => {
         setIsGenerating(false);
-        
+
         // 显示成功消息
         Modal.success({
           title: '行程已生成',
@@ -878,6 +942,10 @@ function ItineraryPage() {
     } catch (error) {
       console.error('处理生成的行程数据失败:', error);
       setIsGenerating(false);
+      Modal.error({
+        title: '行程生成失败',
+        content: '处理AI生成的行程时出现错误，请重试。'
+      });
     }
   };
   
@@ -948,94 +1016,12 @@ function ItineraryPage() {
   // 如果正在生成行程，显示生成进度界面
   if (isGenerating) {
     return (
-      <div className="container">
-        <Header title="正在生成行程" showBackButton onBack={handleBack} />
-        
-        <div className="generating-trip-container" style={{
-        display: 'flex',
-          justifyContent: 'center',
-        alignItems: 'center',
-          height: 'calc(100vh - 60px)',
-          backgroundColor: '#f5f7fa'
-        }}>
-          <div className="generating-animation" style={{
-            maxWidth: '600px',
-                width: '100%', 
-            padding: '30px',
-            textAlign: 'center',
-            backgroundColor: 'white',
-            borderRadius: '16px',
-            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.05)'
-              }}>
-            <Spin size="large" />
-            <h2 style={{ margin: '20px 0', fontSize: '24px', color: '#333' }}>正在为您规划完美行程</h2>
-            
-            <div className="generation-steps" style={{
-              margin: '30px 0',
-              padding: '20px',
-              backgroundColor: '#f8f9fa',
-              borderRadius: '12px'
-            }}>
-              {generationSteps.map((step, index) => (
-                <div 
-                  key={index}
-                  className={`step-item ${index < generationStep ? 'completed' : index === generationStep ? 'active' : ''}`}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                    margin: '16px 0',
-                    color: index < generationStep ? '#52c41a' : index === generationStep ? '#1890ff' : '#aaa'
-                        }}
-                      >
-                  {index < generationStep ? (
-                    <CheckCircleFilled style={{ fontSize: '20px', marginRight: '12px' }} />
-                  ) : index === generationStep ? (
-                    <LoadingOutlined style={{ fontSize: '20px', marginRight: '12px' }} />
-                  ) : (
-                    <div style={{ 
-                      width: '20px', 
-                      height: '20px', 
-                          borderRadius: '50%',
-                      border: '1px solid #aaa',
-                      marginRight: '12px'
-                    }}></div>
-                  )}
-                  <span style={{ 
-                    fontSize: '16px', 
-                    fontWeight: index <= generationStep ? '500' : 'normal'
-                  }}>
-                    {step}
-                  </span>
-                </div>
-              ))}
-            </div>
-            
-            <p className="generation-tip" style={{ 
-              color: '#888', 
-              fontSize: '15px', 
-              fontStyle: 'italic',
-              margin: '20px 0' 
-            }}>
-              正在为您的{tripDetails?.tripInfo?.destination || ''}之旅寻找最佳体验...
-            </p>
-              
-            <div className="progress-bar" style={{ 
-              height: '6px', 
-              backgroundColor: '#f0f0f0', 
-              borderRadius: '3px', 
-              overflow: 'hidden',
-              margin: '30px 0'
-              }}>
-              <div className="progress-bar-fill" style={{ 
-                height: '100%', 
-                backgroundColor: '#1890ff',
-                width: `${(generationStep / generationSteps.length) * 100}%`,
-                transition: 'width 0.5s ease'
-              }}></div>
-                </div>
-                </div>
-              </div>
-                  </div>
+      <GeneratingAnimation
+        steps={generationSteps}
+        currentStep={generationStep}
+        destination={tripDetails?.tripInfo?.destination}
+        title="正在为您规划完美行程"
+      />
     );
   }
 
@@ -1253,7 +1239,7 @@ function ItineraryPage() {
                         <>
                           <Rate disabled defaultValue={attraction.rating || 4.5} /> {attraction.reviewCount || '暂无'}条评价
                           <br />
-                          <EnvironmentOutlined /> {attraction.location || '未知位置'}
+                          <EnvironmentOutlined /> {attraction.address || attraction.location || '未知位置'}
                           <br />
                           <ClockCircleOutlined /> 建议游览时间: {attraction.suggestedDuration || '2-3小时'}
                           {attraction.imageCredit && (
@@ -1336,7 +1322,7 @@ function ItineraryPage() {
                             <Rate disabled defaultValue={hotel.rating} /> <span style={{ color: '#ff4d4f', fontWeight: '500' }}>{hotel.price}</span>
                         </div>
                           <div className="hotel-location" style={{ fontSize: '13px', color: '#8c8c8c' }}>
-                            <EnvironmentOutlined /> {hotel.location}
+                            <EnvironmentOutlined /> {hotel.location || hotel.address || '未知位置'}
                         </div>
                       </div>
                         <Button size="small" type="primary">添加到行程</Button>

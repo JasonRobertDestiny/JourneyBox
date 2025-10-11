@@ -1,0 +1,243 @@
+/* CreateTripEnhanced.css */
+
+.create-trip-enhanced {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.create-trip-enhanced .container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* 进度条样式 */
+.steps-progress {
+  margin-bottom: 30px;
+}
+
+.steps-indicators {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+.step-indicator {
+  flex: 1;
+  text-align: center;
+  opacity: 0.5;
+  transition: all 0.3s ease;
+}
+
+.step-indicator.active {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.step-indicator.completed {
+  opacity: 0.8;
+}
+
+.step-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+  color: white;
+}
+
+.step-title {
+  font-size: 14px;
+  color: white;
+  font-weight: 500;
+}
+
+/* 主卡片 */
+.main-card {
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+  min-height: 500px;
+}
+
+/* 步骤内容 */
+.step-content {
+  padding: 20px;
+  min-height: 400px;
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 目的地选择 */
+.destination-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px;
+  margin: 30px 0;
+}
+
+.destination-card {
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.destination-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+.destination-card.selected {
+  border-color: #1890ff;
+  background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+}
+
+.destination-icon {
+  font-size: 48px;
+  margin-bottom: 10px;
+}
+
+.destination-name {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+.destination-desc {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+/* 日期选择 */
+.date-summary {
+  animation: slideUp 0.5s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 兴趣标签 */
+.interests-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin: 30px 0;
+}
+
+.interest-tag {
+  padding: 10px 20px;
+  font-size: 16px;
+  border-radius: 25px;
+  border: 2px solid #d9d9d9;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.interest-tag:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.ant-tag-checkable-checked {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: #667eea;
+  color: white;
+}
+
+/* 预算部分 */
+.budget-section {
+  max-width: 600px;
+  margin: 40px auto;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 12px;
+}
+
+/* 风格卡片 */
+.style-card {
+  text-align: center;
+  padding: 20px;
+  height: 180px;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.style-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+.style-card.selected {
+  border-color: #1890ff;
+  background: linear-gradient(135deg, #667eea10 0%, #764ba210 100%);
+}
+
+.style-icon {
+  font-size: 36px;
+  margin-bottom: 15px;
+  color: #667eea;
+}
+
+/* 参与者部分 */
+.participants-section {
+  max-width: 600px;
+  margin: 40px auto;
+  text-align: center;
+}
+
+/* 操作按钮 */
+.action-buttons {
+  display: flex;
+  justify-content: space-between;
+  padding: 20px;
+  border-top: 1px solid #f0f0f0;
+  margin-top: 20px;
+}
+
+.action-buttons .ant-btn {
+  min-width: 120px;
+}
+
+.action-buttons .ant-btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.action-buttons .ant-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .destination-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  }
+
+  .style-card {
+    height: auto;
+    margin-bottom: 16px;
+  }
+
+  .create-trip-enhanced .container {
+    padding: 10px;
+  }
+}

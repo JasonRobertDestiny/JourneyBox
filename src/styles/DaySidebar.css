@@ -1,0 +1,104 @@
+.day-sidebar {
+  background: #fff;
+  border-right: 1px solid #f0f0f0;
+  height: 100%;
+  overflow-y: auto;
+  position: sticky;
+  top: 0;
+}
+
+.sidebar-header {
+  padding: 20px;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.sidebar-header .anticon {
+  font-size: 20px;
+  color: #1890ff;
+}
+
+.day-list {
+  padding: 10px;
+}
+
+.day-item {
+  margin-bottom: 10px;
+  padding: 15px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+}
+
+.day-item:hover {
+  background-color: #f5f5f5;
+}
+
+.day-item.active {
+  background-color: #e6f7ff;
+  border-color: #1890ff;
+}
+
+.day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.day-number {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.day-date {
+  font-size: 12px;
+  color: #999;
+}
+
+.day-activities {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.activity-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  font-size: 13px;
+  color: #666;
+}
+
+.activity-preview .anticon {
+  font-size: 12px;
+  color: #999;
+}
+
+.activity-time {
+  color: #1890ff;
+  font-weight: 500;
+  min-width: 45px;
+}
+
+.activity-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.more-activities {
+  padding: 8px 0;
+  font-size: 12px;
+  color: #999;
+  font-style: italic;
+}

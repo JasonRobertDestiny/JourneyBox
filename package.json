@@ -1,6 +1,21 @@
 {
-  "name": "travel-assistant",
+  "name": "journey-box",
   "version": "0.1.0",
+  "description": "JourneyBox - AI智能旅行规划助手 | AI-Powered Travel Planning Assistant",
+  "author": "Jason Robert",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JasonRobertDestiny/TravelAssistant.git"
+  },
+  "keywords": [
+    "travel",
+    "ai",
+    "itinerary",
+    "trip-planner",
+    "react",
+    "siliconflow",
+    "amap"
+  ],
   "private": true,
   "dependencies": {
     "@ant-design/icons": "^5.2.6",
@@ -8,6 +23,7 @@
     "axios": "^1.6.7",
     "framer-motion": "^12.7.4",
     "mcp-server-firecrawl": "^1.2.4",
+    "moment": "^2.30.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.22.2",

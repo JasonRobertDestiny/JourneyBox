@@ -3,7 +3,7 @@ import axios from 'axios';
 // 硅基流动 API 配置 - 使用环境变量
 const SILICONFLOW_API_KEY = process.env.REACT_APP_SILICONFLOW_API_KEY;
 const SILICONFLOW_BASE_URL = process.env.REACT_APP_SILICONFLOW_BASE_URL || 'https://api.siliconflow.cn/v1';
-const SILICONFLOW_MODEL = process.env.REACT_APP_SILICONFLOW_MODEL || 'Qwen/Qwen2.5-VL-72B-Instruct';
+const SILICONFLOW_MODEL = process.env.REACT_APP_SILICONFLOW_MODEL || 'Qwen/Qwen2.5-72B-Instruct';
 
 // 创建硅基流动客户端配置
 const openaiClient = axios.create({
@@ -16,7 +16,7 @@ const openaiClient = axios.create({
 
 // 节流函数 - 限制请求频率
 let lastRequestTime = 0;
-const minRequestInterval = 15000; // 增加到15秒的最小请求间隔时间
+const minRequestInterval = 5000; // 增加到5秒的最小请求间隔时间，避免频率限制
 
 const throttleRequest = async () => {
   const now = Date.now();
@@ -59,63 +59,127 @@ const retryWithDelay = async (fn, retries = 1, delay = 10000) => {
 export const generateTravelPlan = async (tripData) => {
   try {
     const { destination, startDate, endDate, budget, interests, travelStyle, participants } = tripData;
-    
-    // 简化提示词，减少token量
-    const prompt = `
-    请为我生成一个简洁的旅行计划，目的地: ${destination}，时间: ${startDate} 至 ${endDate}
-    预算: ${budget || '中等'}，兴趣: ${interests?.join(', ') || '文化、历史'}
-    风格: ${travelStyle || '轻松'}，人员: ${participants || '成人'}
-    
-    请按照以下格式返回JSON：
+
+    // 计算天数
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const days = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1);
+
+    // 生成高质量的旅行计划提示词
+    const prompt = `作为专业的旅行规划师，请为我生成一个${destination}的${days}天精品旅行计划。
+
+    【用户信息】
+    - 目的地: ${destination}
+    - 时间: ${startDate} 至 ${endDate} (共${days}天)
+    - 预算水平: ${budget || '中等'}
+    - 兴趣爱好: ${Array.isArray(interests) ? interests.join('、') : interests || '文化、历史、美食'}
+    - 旅行风格: ${travelStyle || '轻松舒适'}
+    - 出行人员: ${Array.isArray(participants) ? participants.join('、') : participants || '成人'}
+
+    【要求】
+    1. 必须使用${destination}真实存在的景点、餐厅、酒店
+    2. 景点需包含：
+       - 著名地标和必去景点
+       - 符合用户兴趣的特色地点
+       - 当地文化体验项目
+    3. 餐饮安排：
+       - 推荐当地特色美食餐厅
+       - 包含正餐和小吃体验
+       - 提供不同价位选择
+    4. 时间安排：
+       - 每天安排4-6个活动
+       - 考虑景点开放时间和游览时长
+       - 预留休息和自由活动时间
+       - 合理规划交通路线，避免往返奔波
+    5. 描述要求：
+       - 每个景点需要详细介绍（历史背景、特色亮点、游玩建议）
+       - 餐厅需说明特色菜品和人均消费
+       - 提供实用的游玩贴士
+
+    【JSON格式要求】
+    请严格按照以下格式返回，确保是有效的JSON（不要包含markdown标记）：
     {
-      "overview": "行程总览",
-      "tips": "旅行建议",
+      "overview": "行程总览，50-100字，突出行程特色和亮点",
+      "tips": "实用建议，包括最佳游玩季节、穿着建议、注意事项等，100-150字",
       "days": [
         {
-          "date": "日期",
-          "dayOverview": "当天概览",
+          "date": "${startDate}",
+          "dayOverview": "第1天的主题，如：探索历史古迹、品味地道美食等",
           "activities": [
             {
-              "time": "开始时间",
-              "duration": "持续时间",
-              "name": "活动名称",
-              "type": "景点/餐厅/交通/住宿",
-              "location": "地点",
-              "description": "简短描述",
-              "cost": "预估费用"
+              "time": "09:00",
+              "duration": "120",
+              "name": "具体景点或餐厅名称",
+              "type": "景点/餐厅/交通/休息",
+              "location": "详细地址",
+              "description": "100-150字的详细介绍，包括历史背景、特色亮点、游玩建议、推荐菜品等",
+              "cost": "门票价格或人均消费"
             }
           ]
         }
       ],
-      "accommodation": "住宿建议",
-      "transportation": "交通建议"
-    }
-    尽量精简内容，减少token用量。
-    `;
-    
+      "accommodation": "推荐2-3家不同档次的酒店，包含名称、位置、价格区间、特色",
+      "transportation": "详细的交通建议，包括机场/火车站往返、市内交通方式、打车参考价格等"
+    }`;
+
     // 使用重试机制发送请求
     const response = await retryWithDelay(async () => {
       return await openaiClient.post('/chat/completions', {
         model: SILICONFLOW_MODEL,
         messages: [
           {
+            role: 'system',
+            content: '你是一位经验丰富的旅行规划专家，熟悉中国各地的旅游资源，能够根据用户需求制定个性化的旅行计划。请直接返回JSON格式的数据，不要添加任何额外的文字说明或markdown标记。'
+          },
+          {
             role: 'user',
             content: prompt
           }
         ],
-        temperature: 0.7,
-        response_format: { type: 'json_object' }
+        temperature: 0.85,  // 提高创造性
+        max_tokens: 12000, // 大幅增加token以生成更高质量和详细的内容
+        top_p: 0.95,
+        stream: false
       });
     });
     
     // 解析API响应
     if (response.data && response.data.choices && response.data.choices[0] && response.data.choices[0].message) {
-      const content = response.data.choices[0].message.content;
+      let content = response.data.choices[0].message.content;
+
+      // 清理AI返回的内容 - 移除markdown代码块标记
+      console.log('【DEBUG】原始AI响应内容（前200字符）:', content.substring(0, 200));
+      content = content.trim();
+
+      // 处理各种markdown格式
+      if (content.startsWith('```json') && content.endsWith('```')) {
+        // 移除开头的```json和结尾的```
+        content = content.slice(7, -3).trim();
+      } else if (content.startsWith('```') && content.endsWith('```')) {
+        // 移除开头和结尾的```
+        content = content.slice(3, -3).trim();
+      } else if (content.includes('```json')) {
+        // 使用正则提取
+        const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
+        if (jsonMatch && jsonMatch[1]) {
+          content = jsonMatch[1].trim();
+        }
+      } else if (content.includes('```')) {
+        // 使用正则提取任何代码块
+        const codeMatch = content.match(/```\s*([\s\S]*?)\s*```/);
+        if (codeMatch && codeMatch[1]) {
+          content = codeMatch[1].trim();
+        }
+      }
+
+      console.log('【DEBUG】清理后的内容（前200字符）:', content.substring(0, 200));
+
       try {
         // 将返回的JSON字符串解析为对象
         return JSON.parse(content);
       } catch (parseError) {
         console.error('解析AI返回的JSON失败:', parseError);
+        console.error('原始内容:', content);
         return { error: 'AI返回的数据格式有误' };
       }
     }
@@ -123,15 +187,34 @@ export const generateTravelPlan = async (tripData) => {
     return { error: 'AI响应格式错误' };
   } catch (error) {
     console.error('生成旅行计划失败:', error);
-    
+    console.error('【DEBUG】错误详情:', {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      headers: error.response?.headers,
+      config: {
+        url: error.config?.url,
+        method: error.config?.method,
+        data: error.config?.data
+      }
+    });
+
     // 如果是429错误，给出更明确的错误信息
     if (error.response?.status === 429) {
-      return { 
+      return {
         error: 'API请求频率超限，请稍后再试',
         errorDetails: '服务器正在处理太多请求，需要一段时间来恢复。这是正常的限流机制，保护API不被过度使用。'
       };
     }
-    
+
+    // 如果是400错误，返回API的具体错误信息
+    if (error.response?.status === 400) {
+      return {
+        error: 'API请求格式错误',
+        errorDetails: error.response?.data?.error?.message || JSON.stringify(error.response?.data)
+      };
+    }
+
     return { error: error.message || '生成旅行计划时发生错误' };
   }
 };
@@ -144,22 +227,43 @@ export const searchAttractionInfo = async (attractionName, location) => {
         model: SILICONFLOW_MODEL,
         messages: [
           {
+            role: 'system',
+            content: '你是一个旅游信息助手。请严格按照JSON格式返回数据。'
+          },
+          {
             role: 'user',
             content: `简要描述${location || ''}的${attractionName}，包括历史背景和开放时间。请以精简的JSON格式返回，控制在200字以内。`
           }
         ],
         temperature: 0.3,
-        max_tokens: 1000, // 减少token使用量
-        response_format: { type: 'json_object' }
+        max_tokens: 3000,  // 增加token限制以确保完整响应
+        top_p: 0.8,
+        stream: false
       });
     });
     
     if (response.data && response.data.choices && response.data.choices[0] && response.data.choices[0].message) {
-      const content = response.data.choices[0].message.content;
+      let content = response.data.choices[0].message.content;
+
+      // 清理内容 - 移除markdown代码块标记
+      content = content.trim();
+      if (content.includes('```json')) {
+        const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
+        if (jsonMatch && jsonMatch[1]) {
+          content = jsonMatch[1].trim();
+        }
+      } else if (content.includes('```')) {
+        const codeMatch = content.match(/```\s*([\s\S]*?)\s*```/);
+        if (codeMatch && codeMatch[1]) {
+          content = codeMatch[1].trim();
+        }
+      }
+
       try {
         return JSON.parse(content);
       } catch (parseError) {
         console.error('解析AI返回的景点JSON失败:', parseError);
+        console.error('原始内容:', content);
         return { error: 'AI返回的数据格式有误' };
       }
     }
@@ -202,21 +306,42 @@ export const optimizeTripPlan = async (currentPlan, options) => {
       model: SILICONFLOW_MODEL,
       messages: [
         {
+          role: 'system',
+          content: '你是一个旅行规划优化助手。请严格按照JSON格式返回数据。'
+        },
+        {
           role: 'user',
           content: prompt
         }
       ],
       temperature: 0.7,
-      max_tokens: 2000, // 减少token上限
-      response_format: { type: 'json_object' }
+      max_tokens: 6000,  // 增加token限制以生成完整优化行程
+      top_p: 0.9,
+      stream: false
     });
     
     if (response.data && response.data.choices && response.data.choices[0] && response.data.choices[0].message) {
-      const content = response.data.choices[0].message.content;
+      let content = response.data.choices[0].message.content;
+
+      // 清理内容 - 移除markdown代码块标记
+      content = content.trim();
+      if (content.includes('```json')) {
+        const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
+        if (jsonMatch && jsonMatch[1]) {
+          content = jsonMatch[1].trim();
+        }
+      } else if (content.includes('```')) {
+        const codeMatch = content.match(/```\s*([\s\S]*?)\s*```/);
+        if (codeMatch && codeMatch[1]) {
+          content = codeMatch[1].trim();
+        }
+      }
+
       try {
         return JSON.parse(content);
       } catch (parseError) {
         console.error('解析AI返回的优化JSON失败:', parseError);
+        console.error('原始内容:', content);
         return { error: 'AI返回的数据格式有误' };
       }
     }
@@ -254,7 +379,9 @@ export const askTravelQuestion = async (question, tripContext) => {
         }
       ],
       temperature: 0.5,
-      max_tokens: 800
+      max_tokens: 2000,  // 增加token限制
+      top_p: 0.8,
+      stream: false
     });
     
     if (response.data && response.data.choices && response.data.choices[0]) {
