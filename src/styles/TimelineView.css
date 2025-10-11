@@ -1,0 +1,178 @@
+/* 时间轴视图容器 */
+.timeline-container {
+  width: 100%;
+  padding: 20px 0;
+}
+
+.timeline-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* 日期卡片 */
+.day-column {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.day-column:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.day-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+}
+
+.day-title {
+  margin: 0 0 8px 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.day-date {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.day-overview {
+  margin: 8px 0 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  opacity: 0.95;
+}
+
+/* 活动列表 */
+.activities-list {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.no-activities {
+  text-align: center;
+  padding: 40px 20px;
+  color: #8c8c8c;
+  font-size: 14px;
+}
+
+/* 活动卡片 */
+.activity-card {
+  background: #fafafa;
+  border-left: 4px solid #1890ff;
+  border-radius: 8px;
+  padding: 16px;
+  transition: background 0.2s;
+}
+
+.activity-card:hover {
+  background: #f0f0f0;
+}
+
+.activity-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.activity-icon {
+  font-size: 20px;
+}
+
+.activity-type-label {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  background: rgba(24, 144, 255, 0.1);
+  border-radius: 4px;
+}
+
+.activity-time {
+  font-size: 13px;
+  color: #595959;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.activity-duration {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.activity-name {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.activity-location {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  color: #595959;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.activity-description {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #595959;
+}
+
+.activity-cost {
+  margin: 0;
+  font-size: 13px;
+  color: #52c41a;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 空状态 */
+.timeline-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: #8c8c8c;
+}
+
+.timeline-empty p {
+  margin: 0;
+  font-size: 16px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .timeline-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .day-header {
+    padding: 16px;
+  }
+
+  .activities-list {
+    padding: 12px;
+  }
+
+  .activity-card {
+    padding: 12px;
+  }
+}

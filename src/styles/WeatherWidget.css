@@ -1,0 +1,123 @@
+/* 天气组件容器 */
+.weather-widget {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 20px;
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.weather-widget.loading,
+.weather-widget.error {
+  background: #f5f5f5;
+  color: #595959;
+  text-align: center;
+  padding: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.weather-title {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 天气列表 */
+.weather-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 12px;
+}
+
+.weather-day {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 12px 8px;
+  text-align: center;
+  backdrop-filter: blur(10px);
+  transition: transform 0.2s, background 0.2s;
+}
+
+.weather-day:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.weather-date {
+  font-size: 12px;
+  margin-bottom: 8px;
+  opacity: 0.9;
+  font-weight: 500;
+}
+
+.weather-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.weather-condition {
+  font-size: 13px;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.weather-temp {
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.temp-high {
+  color: #fff;
+}
+
+.temp-divider {
+  opacity: 0.6;
+}
+
+.temp-low {
+  opacity: 0.8;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .weather-widget {
+    padding: 16px;
+  }
+
+  .weather-list {
+    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+    gap: 8px;
+  }
+
+  .weather-day {
+    padding: 10px 6px;
+  }
+
+  .weather-icon {
+    font-size: 28px;
+  }
+
+  .weather-condition {
+    font-size: 12px;
+  }
+
+  .weather-temp {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .weather-list {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
