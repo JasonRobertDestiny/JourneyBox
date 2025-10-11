@@ -398,4 +398,59 @@ export const askTravelQuestion = async (question, tripContext) => {
     }
     return { error: error.message || '获取回答时发生错误' };
   }
+};
+
+// 生成模拟的旅行计划数据（演示模式）
+const generateMockTravelPlan = (destination, startDate, endDate, days) => {
+  const mockActivities = [
+    { name: '故宫博物院', type: '景点', description: '世界文化遗产，明清两代皇家宫殿', cost: '60元' },
+    { name: '天坛公园', type: '景点', description: '明清皇帝祭天祈谷的场所', cost: '35元' },
+    { name: '颐和园', type: '景点', description: '皇家园林博物馆', cost: '30元' },
+    { name: '长城', type: '景点', description: '世界文化遗产，中国古代军事防御工程', cost: '45元' },
+    { name: '全聚德烤鸭', type: '餐厅', description: '北京烤鸭百年老字号', cost: '200元/人' },
+    { name: '老北京炸酱面', type: '餐厅', description: '地道北京传统美食', cost: '30元/人' },
+    { name: '南锣鼓巷', type: '景点', description: '北京最古老的街区之一', cost: '免费' },
+    { name: '798艺术区', type: '景点', description: '当代艺术文化创意产业集聚区', cost: '免费' }
+  ];
+
+  const result = {
+    overview: `${destination}${days}天精品游，涵盖主要景点、特色美食和文化体验`,
+    tips: '建议穿着舒适的鞋子，准备好防晒用品。景点可能需要提前预约，请关注官方公众号。',
+    days: []
+  };
+
+  // 为每一天生成活动
+  for (let i = 0; i < days; i++) {
+    const dayDate = new Date(startDate);
+    dayDate.setDate(dayDate.getDate() + i);
+
+    const dayActivities = [];
+    const activitiesPerDay = 4 + Math.floor(Math.random() * 2); // 每天4-5个活动
+
+    for (let j = 0; j < activitiesPerDay; j++) {
+      const activity = mockActivities[Math.floor(Math.random() * mockActivities.length)];
+      const hour = 9 + j * 2; // 从9点开始，每2小时一个活动
+
+      dayActivities.push({
+        time: `${hour < 10 ? '0' : ''}${hour}:00`,
+        duration: '120',
+        name: activity.name,
+        type: activity.type,
+        location: `${destination}市区`,
+        description: activity.description,
+        cost: activity.cost
+      });
+    }
+
+    result.days.push({
+      date: dayDate.toISOString().split('T')[0],
+      dayOverview: `第${i + 1}天: 探索${destination}的精彩景点`,
+      activities: dayActivities
+    });
+  }
+
+  result.accommodation = `推荐住宿：1. 五星级酒店（800-1200元/晚） 2. 精品民宿（300-500元/晚） 3. 经济型酒店（150-250元/晚）`;
+  result.transportation = `交通建议：机场/火车站可乘坐地铁或出租车到市区。市内建议使用地铁、公交或打车，日均交通费约50-100元。`;
+
+  return result;
 }; 

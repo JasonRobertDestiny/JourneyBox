@@ -1,0 +1,183 @@
+/* EditTripPage 样式文件 */
+
+.edit-trip-container {
+  min-height: 100vh;
+  background: #f0f2f5;
+}
+
+.edit-trip-content {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* 工具栏样式 */
+.toolbar-card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* 基本信息卡片 */
+.basic-info-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* 行程详情卡片 */
+.itinerary-detail-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* 日程卡片 */
+.day-card {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid #e9ecef;
+}
+
+.day-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* 活动项样式 */
+.activity-item {
+  background: white;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 8px;
+  border: 1px solid #e0e0e0;
+  transition: all 0.3s ease;
+}
+
+.activity-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.activity-time {
+  color: #1890ff;
+  font-weight: 500;
+  margin-right: 8px;
+}
+
+.activity-duration {
+  color: #666;
+  font-size: 12px;
+}
+
+.activity-name {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.activity-location {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.activity-description {
+  color: #888;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.activity-cost {
+  color: #52c41a;
+  font-weight: 500;
+}
+
+/* 编辑模式样式 */
+.edit-mode .activity-item {
+  background: #fff9e6;
+  border-color: #faad14;
+}
+
+.edit-mode .activity-input {
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  padding: 4px 8px;
+  margin-bottom: 4px;
+  transition: all 0.3s;
+}
+
+.edit-mode .activity-input:focus {
+  border-color: #40a9ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+/* 优化选项样式 */
+.optimize-option {
+  padding: 8px 0;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.optimize-option:hover {
+  background: #f0f2f5;
+  padding-left: 8px;
+}
+
+/* 分享模态框 */
+.share-modal-content {
+  text-align: center;
+}
+
+.share-link-input {
+  margin-top: 16px;
+  background: #f5f5f5;
+  border: 1px solid #d9d9d9;
+}
+
+/* 高级设置抽屉 */
+.advanced-settings-card {
+  margin-bottom: 16px;
+}
+
+.advanced-settings-card h4 {
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.advanced-settings-card p {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .edit-trip-content {
+    padding: 16px;
+  }
+
+  .toolbar-card {
+    padding: 12px 16px;
+  }
+
+  .basic-info-card,
+  .itinerary-detail-card {
+    padding: 16px;
+  }
+
+  .ant-form-item {
+    margin-bottom: 12px;
+  }
+}

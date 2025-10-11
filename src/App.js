@@ -7,6 +7,7 @@ import TripDetailPage from './pages/TripDetailPage';
 import ItineraryPage from './pages/ItineraryPage';
 import ItineraryPageSimple from './pages/ItineraryPageSimple';
 import ItineraryPageImproved from './pages/ItineraryPageImproved';
+import EditTripPage from './pages/EditTripPage';
 import DiscoverPage from './pages/DiscoverPage';
 import CommunityPage from './pages/CommunityPage';
 import PostDetailPage from './pages/PostDetailPage';
@@ -30,6 +31,7 @@ function App() {
         <Route path="/itinerary/:id" element={<ItineraryPage />} />
         <Route path="/itinerary-simple/:id" element={<ItineraryPageSimple />} />
         <Route path="/itinerary-improved/:id" element={<ItineraryPageImproved />} />
+        <Route path="/edit-trip/:id" element={<EditTripPage />} />
         <Route path="/discover" element={<DiscoverPage />} />
         <Route path="/community" element={<CommunityPage />} />
         <Route path="/community/post/:id" element={<PostDetailPage />} />

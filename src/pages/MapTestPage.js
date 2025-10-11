@@ -1,11 +1,26 @@
-import React, { useState } from 'react';
-import { Layout, Card, Button, Space, message, Row, Col } from 'antd';
-import { CompassOutlined, PlusOutlined, EditOutlined, ShareAltOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Layout, Card, Button, Space, message, Row, Col, Alert } from 'antd';
+import { CompassOutlined, PlusOutlined, EditOutlined, ShareAltOutlined, EnvironmentOutlined } from '@ant-design/icons';
 import MapComponent from '../components/MapComponent';
 
 const { Content } = Layout;
 
 const MapTestPage = () => {
+  const [mapLoaded, setMapLoaded] = useState(false);
+
+  useEffect(() => {
+    // 检查高德地图是否加载
+    const checkMapLoaded = () => {
+      if (window.AMap) {
+        setMapLoaded(true);
+      } else {
+        // 等待1秒后再检查
+        setTimeout(checkMapLoaded, 1000);
+      }
+    };
+    checkMapLoaded();
+  }, []);
+
   // 测试数据 - 北京的一些著名景点
   const [testLocations] = useState([
     {
@@ -67,13 +82,62 @@ const MapTestPage = () => {
         <Row gutter={[16, 16]}>
           <Col span={16}>
             {/* 地图组件 */}
-            <div style={{ height: '600px' }}>
-              <MapComponent
-                locations={testLocations}
-                center={[116.397128, 39.916527]}
-                zoom={11}
-              />
-            </div>
+            <Card
+              title={
+                <span>
+                  <EnvironmentOutlined /> 高德地图展示
+                </span>
+              }
+              style={{ height: '600px' }}
+            >
+              {mapLoaded ? (
+                <div style={{ height: '500px' }}>
+                  <MapComponent
+                    locations={testLocations}
+                    center={[116.397128, 39.916527]}
+                    zoom={11}
+                  />
+                </div>
+              ) : (
+                <div style={{ height: '500px', position: 'relative' }}>
+                  <img
+                    src="/amap.png"
+                    alt="高德地图"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      borderRadius: '4px'
+                    }}
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAwIiBoZWlnaHQ9IjUwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iODAwIiBoZWlnaHQ9IjUwMCIgZmlsbD0iI2Y1ZjVmNSIvPgogIDx0ZXh0IHg9IjQwMCIgeT0iMjUwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyNCIgZmlsbD0iIzk5OSI+6auY5b635Zyw5Zu+PC90ZXh0Pgo8L3N2Zz4=';
+                    }}
+                  />
+                  <div style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    textAlign: 'center',
+                    background: 'rgba(255, 255, 255, 0.9)',
+                    padding: '20px',
+                    borderRadius: '8px',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                  }}>
+                    <EnvironmentOutlined style={{ fontSize: '48px', color: '#1890ff', marginBottom: '10px' }} />
+                    <h3>高德地图示例</h3>
+                    <p style={{ color: '#666' }}>地图功能正在加载中...</p>
+                    <Alert
+                      type="info"
+                      message="如果地图无法显示，请检查网络连接"
+                      showIcon
+                      style={{ marginTop: '10px' }}
+                    />
+                  </div>
+                </div>
+              )}
+            </Card>
           </Col>
           <Col span={8}>
             {/* 功能测试按钮 */}
