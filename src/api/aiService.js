@@ -1,7 +1,8 @@
 import axios from 'axios';
 
-// 硅基流动 API 配置 - 使用环境变量
-const SILICONFLOW_API_KEY = process.env.REACT_APP_SILICONFLOW_API_KEY;
+// 硅基流动 API 配置 - 使用环境变量或默认值
+// 注意：生产环境应该使用环境变量，这里的硬编码仅作为临时后备方案
+const SILICONFLOW_API_KEY = process.env.REACT_APP_SILICONFLOW_API_KEY || 'sk-dmboumrbewxcexhzeegupvakiunvwsirrxabnpkcamnvogga';
 const SILICONFLOW_BASE_URL = process.env.REACT_APP_SILICONFLOW_BASE_URL || 'https://api.siliconflow.cn/v1';
 const SILICONFLOW_MODEL = process.env.REACT_APP_SILICONFLOW_MODEL || 'Qwen/Qwen2.5-72B-Instruct';
 
