@@ -1483,4 +1483,54 @@ function generatePlacesForDestination(destination, day) {
   }
   
   return commonPlaces;
-} 
+}
+
+// 更新行程
+export const updateTrip = (tripId, tripData) => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const index = mockTrips.findIndex(trip => trip.id === tripId);
+      if (index !== -1) {
+        // 更新行程基本信息
+        mockTrips[index] = {
+          ...mockTrips[index],
+          ...tripData
+        };
+
+        // 更新详细行程信息
+        if (mockTripDetails[tripId]) {
+          mockTripDetails[tripId].tripInfo = {
+            ...mockTripDetails[tripId].tripInfo,
+            ...tripData
+          };
+        }
+
+        resolve({ success: true, trip: mockTrips[index] });
+      } else {
+        reject(new Error('未找到行程'));
+      }
+    }, 500);
+  });
+};
+
+// 删除行程
+export const deleteTrip = (tripId) => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const index = mockTrips.findIndex(trip => trip.id === tripId);
+      if (index !== -1) {
+        // 删除行程
+        mockTrips.splice(index, 1);
+
+        // 删除详细行程数据
+        if (mockTripDetails[tripId]) {
+          delete mockTripDetails[tripId];
+        }
+
+        resolve({ success: true, message: '行程已删除' });
+      } else {
+        reject(new Error('未找到行程'));
+      }
+    }, 500);
+  });
+};

@@ -18,6 +18,7 @@ import AuthPage from './pages/AuthPage';
 import GeneratingTripPage from './pages/GeneratingTripPage';
 import WechatCallbackPage from './pages/WechatCallbackPage';
 import MapTestPage from './pages/MapTestPage';
+import ApiTestPage from './pages/ApiTestPage';
 import { AuthProvider } from './contexts/AuthContext';
 
 function App() {
@@ -42,6 +43,7 @@ function App() {
         <Route path="/generating-trip" element={<GeneratingTripPage />} />
         <Route path="/auth/wechat-callback" element={<WechatCallbackPage />} />
         <Route path="/map-test" element={<MapTestPage />} />
+        <Route path="/api-test" element={<ApiTestPage />} />
       </Routes>
     </AuthProvider>
   );

@@ -537,21 +537,36 @@ function ItineraryPage() {
           errorMessage = error.message;
         }
 
-        // 显示错误信息，让用户选择
+        // 显示错误信息,让用户选择
         Modal.error({
           title: '生成失败',
           content: errorMessage + '\n\n您可以稍后点击"AI生成行程"按钮重试。',
           onOk: () => {
+            // 确保生成状态被完全重置
             setIsGenerating(false);
             setIsLoading(false);
+            setGenerationStep(0);
+            // 不跳转,让用户留在当前页面重试
           }
         });
+        return; // 立即返回,阻止执行后续代码
       }
     } catch (error) {
       console.error('整体行程生成过程失败:', error);
       setIsError(true);
-      setOfflineReason('生成行程时发生意外错误，请重试或联系支持团队。');
+      setOfflineReason('生成行程时发生意外错误,请重试或联系支持团队。');
       setIsLoading(false);
+      setIsGenerating(false);
+      setGenerationStep(0);
+
+      // 显示错误信息
+      Modal.error({
+        title: '生成失败',
+        content: '生成行程时发生意外错误。请检查网络连接后重试。',
+        onOk: () => {
+          // 留在当前页面,让用户可以重试
+        }
+      });
     }
   };
   
