@@ -1,4 +1,50 @@
-// 模拟的行程数据
+// localStorage持久化key
+const STORAGE_KEY_TRIPS = 'journeybox_trips';
+const STORAGE_KEY_TRIP_DETAILS = 'journeybox_trip_details';
+
+// 从localStorage加载用户创建的行程
+const loadUserTrips = () => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_TRIPS);
+    return saved ? JSON.parse(saved) : [];
+  } catch (e) {
+    console.error('加载用户行程失败:', e);
+    return [];
+  }
+};
+
+const loadUserTripDetails = () => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_TRIP_DETAILS);
+    return saved ? JSON.parse(saved) : {};
+  } catch (e) {
+    console.error('加载行程详情失败:', e);
+    return {};
+  }
+};
+
+// 保存用户行程到localStorage
+const saveUserTrips = (trips) => {
+  try {
+    localStorage.setItem(STORAGE_KEY_TRIPS, JSON.stringify(trips));
+  } catch (e) {
+    console.error('保存用户行程失败:', e);
+  }
+};
+
+const saveUserTripDetails = (details) => {
+  try {
+    localStorage.setItem(STORAGE_KEY_TRIP_DETAILS, JSON.stringify(details));
+  } catch (e) {
+    console.error('保存行程详情失败:', e);
+  }
+};
+
+// 用户创建的行程(从localStorage加载)
+let userTrips = loadUserTrips();
+let userTripDetails = loadUserTripDetails();
+
+// 预设的示例行程数据
 const mockTrips = [
   { 
     id: 1, 
@@ -1257,21 +1303,29 @@ const mockTripDetails = {
   }
 };
 
-// 获取所有行程
+// 获取所有行程(合并预设+用户创建)
 export const getAllTrips = () => {
   return new Promise((resolve) => {
     // 模拟网络延迟
     setTimeout(() => {
-      resolve(mockTrips);
+      // 重新加载用户行程以确保数据最新
+      userTrips = loadUserTrips();
+      resolve([...mockTrips, ...userTrips]);
     }, 500);
   });
 };
 
-// 根据ID获取行程
+// 根据ID获取行程(合并预设+用户创建)
 export const getTripById = (id) => {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
-      const trip = mockTrips.find(trip => trip.id === id);
+      // 先在预设行程中查找
+      let trip = mockTrips.find(trip => trip.id === id);
+      // 如果没找到,在用户行程中查找
+      if (!trip) {
+        userTrips = loadUserTrips();
+        trip = userTrips.find(trip => trip.id === id);
+      }
       if (trip) {
         resolve(trip);
       } else {
@@ -1281,11 +1335,17 @@ export const getTripById = (id) => {
   });
 };
 
-// 获取行程详情
+// 获取行程详情(合并预设+用户创建)
 export const getTripDetailsById = (id) => {
   return new Promise((resolve) => {
     setTimeout(() => {
-      const details = mockTripDetails[id];
+      // 先在预设详情中查找
+      let details = mockTripDetails[id];
+      // 如果没找到,在用户详情中查找
+      if (!details) {
+        userTripDetails = loadUserTripDetails();
+        details = userTripDetails[id];
+      }
       
       // 确保所有景点图片可访问
       if (details && details.itinerary && details.itinerary.days) {
@@ -1329,30 +1389,37 @@ export const getTripDetailsById = (id) => {
   });
 };
 
-// 创建新行程
+// 创建新行程(保存到localStorage)
 export const createTrip = (tripData) => {
-  // 生成新行程ID
-  const newTripId = mockTrips.length + 1;
-  
+  // 重新加载用户行程以确保ID不冲突
+  userTrips = loadUserTrips();
+  userTripDetails = loadUserTripDetails();
+
+  // 生成新行程ID: 从1000开始,避免与预设行程冲突
+  const existingIds = [...mockTrips.map(t => t.id), ...userTrips.map(t => t.id)];
+  const newTripId = Math.max(1000, ...existingIds) + 1;
+
   // 创建新行程对象
   const newTrip = {
     id: newTripId,
     ...tripData,
-    coverImage: `image/${tripData.destination.toLowerCase()}.jpg`
+    coverImage: `/image/${tripData.destination.toLowerCase()}.jpg`,
+    createdAt: new Date().toISOString()
   };
-  
-  // 添加到模拟行程列表
-  mockTrips.push(newTrip);
-  
+
+  // 添加到用户行程列表(持久化)
+  userTrips.push(newTrip);
+  saveUserTrips(userTrips);
+
   // 为新行程创建详细行程数据
   const startDate = new Date(tripData.startDate);
   const endDate = new Date(tripData.endDate);
   const tripDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
-  
+
   // 根据目的地自动生成行程详情
   const daysArray = [];
   const colors = ['#FF5252', '#2196F3', '#4CAF50', '#FFC107', '#9C27B0'];
-  
+
   for (let i = 0; i < tripDays; i++) {
     daysArray.push({
       day: i + 1,
@@ -1361,9 +1428,9 @@ export const createTrip = (tripData) => {
       places: generatePlacesForDestination(tripData.destination, i + 1)
     });
   }
-  
-  // 创建详细行程
-  mockTripDetails[newTripId] = {
+
+  // 创建详细行程(持久化)
+  userTripDetails[newTripId] = {
     tripInfo: {
       ...newTrip,
       notes: tripData.notes || `这是一次${tripData.destination}之旅`
@@ -1372,7 +1439,10 @@ export const createTrip = (tripData) => {
       days: daysArray
     }
   };
-  
+  saveUserTripDetails(userTripDetails);
+
+  console.log('【创建行程】新行程ID:', newTripId, '已保存到localStorage');
+
   // 直接返回新创建的行程ID，不使用模拟延迟
   return Promise.resolve({ id: newTripId });
 };
