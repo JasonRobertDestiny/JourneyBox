@@ -154,28 +154,40 @@ function ItineraryPage() {
       try {
         setLoading(true);
         const data = await getTripDetailsById(parseInt(id));
+
+        // 检查行程是否存在
+        if (!data) {
+          console.error('【FIX-V3】行程不存在，ID:', id);
+          Modal.error({
+            title: '行程不存在',
+            content: '该行程数据已过期或不存在，请重新创建行程。',
+            onOk: () => navigate('/create-trip')
+          });
+          return;
+        }
+
         setTripDetails(data);
-        
+
         // 设置第一天的时间范围
-        if (data && data.itinerary && data.itinerary.days && data.itinerary.days.length > 0) {
+        if (data.itinerary && data.itinerary.days && data.itinerary.days.length > 0) {
           setDailyTimeRange(data.itinerary.days[0].dailyTimeRange || { start: 9, end: 19 });
         }
-        
+
         // 检查是否需要启动AI生成
-        const shouldStartGeneration = 
+        const shouldStartGeneration =
           // 检查localStorage中的标记
           localStorage.getItem('startAiGeneration') === 'true' ||
           // 检查URL中是否有generate=true参数
           new URLSearchParams(window.location.search).get('generate') === 'true';
-        
-        if (shouldStartGeneration) {
+
+        if (shouldStartGeneration && data.tripInfo) {
           // 清除标记，避免重复触发
           localStorage.removeItem('startAiGeneration');
           // 开始AI生成
           setTimeout(() => {
             setIsGenerating(true);
             setGenerationStep(0);
-            console.log("【FIX-V2】开始生成行程 - 修复版本已应用", data);
+            console.log("【FIX-V3】开始生成行程", data.tripInfo);
           }, 500); // 短暂延迟以确保UI已渲染
         }
       } catch (error) {
@@ -189,7 +201,7 @@ function ItineraryPage() {
         setLoading(false);
       }
     };
-    
+
     fetchTripDetails();
   }, [id, navigate]);
   
@@ -438,51 +450,10 @@ function ItineraryPage() {
         localStorage.removeItem('forceOfflineMode');
       }
 
-      // 先检查本地存储是否已有该目的地的离线数据
+      // 缓存key，用于保存成功生成的行程
       const offlineKey = `offline_trip_${tripData.destination}_${tripData.startDate}_${tripData.endDate}`;
-      const cachedData = localStorage.getItem(offlineKey);
 
-      // 永远不自动使用离线模式，除非API真的失败了
-      if (false) {
-        console.log('使用离线模式生成行程数据');
-        // 使用离线数据
-        if (cachedData) {
-          console.log('使用本地缓存的离线数据');
-          setIsLoading(false);
-          setItineraryData(JSON.parse(cachedData));
-          setIsInOfflineMode(true);
-          setOfflineReason('根据用户设置使用离线模式');
-          return;
-        }
-        
-        // 模拟生成步骤进度
-        const stepInterval = setInterval(() => {
-          setGenerationStep(prev => {
-            if (prev < generationSteps.length - 1) {
-              return prev + 1;
-            }
-            clearInterval(stepInterval);
-            return prev;
-          });
-        }, 1500);
-        
-        // 使用模拟数据
-        setTimeout(async () => {
-          const mockData = getMockTravelPlan(tripData);
-          localStorage.setItem(offlineKey, JSON.stringify(mockData));
-          setItineraryData(mockData);
-          setIsLoading(false);
-          setIsInOfflineMode(true);
-          setOfflineReason('根据用户设置使用离线模式');
-
-          // Process the mock plan to update trip details
-          await processGeneratedPlan(mockData);
-        }, generationSteps.length * 1500);
-        
-        return;
-      }
-      
-      // 模拟生成步骤进度
+      // 显示生成步骤进度
       const stepInterval = setInterval(() => {
         setGenerationStep(prev => {
           if (prev < generationSteps.length - 1) {
@@ -523,34 +494,9 @@ function ItineraryPage() {
         if (error.response?.data?.error) {
           errorMessage = error.response.data.error;
 
-          // 特殊错误处理
-          if (errorMessage.includes('请求频率超限')) {
-            errorMessage = 'API请求频率超限，请稍等几秒后再试。';
-
-            // 只有在用户确认后才使用离线模式
-            Modal.confirm({
-              title: 'API请求频率超限',
-              content: '当前请求过于频繁，是否使用离线模拟数据查看示例行程？您也可以稍后再试。',
-              okText: '使用离线数据',
-              cancelText: '稍后再试',
-              onOk: async () => {
-                // 用户选择使用离线模式
-                console.log('用户选择使用离线模式');
-                const mockData = getMockTravelPlan(tripData);
-                localStorage.setItem(offlineKey, JSON.stringify(mockData));
-                setItineraryData(mockData);
-                setIsLoading(false);
-                setIsInOfflineMode(true);
-                setOfflineReason('API频率限制，使用模拟数据');
-                await processGeneratedPlan(mockData);
-              },
-              onCancel: () => {
-                // 用户选择稍后再试
-                setIsGenerating(false);
-                setIsLoading(false);
-              }
-            });
-            return; // 提前返回，不自动使用离线模式
+          // 429频率限制处理
+          if (errorMessage.includes('请求频率超限') || errorMessage.includes('频率')) {
+            errorMessage = 'API请求频率超限，请稍等5秒后再试。';
           }
         } else if (error.message) {
           errorMessage = error.message;
@@ -589,302 +535,6 @@ function ItineraryPage() {
     }
   };
   
-  // 添加一个获取模拟旅行计划的函数，当API调用失败时使用
-  const getMockTravelPlan = (tripInfo) => {
-    const { destination, startDate, endDate } = tripInfo;
-    
-    // 计算行程天数
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const days = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1);
-    
-    // 根据目的地选择对应的景点数据
-    const cityAttractions = getCityAttractions(destination);
-    
-    // 生成模拟的行程数据
-    return {
-      overview: `这是一个${days}天的${destination}旅行计划。您将体验当地的文化、美食和风景。`,
-      tips: "由于API调用限制，这是一个模拟生成的行程。您可以稍后再试。",
-      days: Array(days).fill(null).map((_, index) => {
-        const dayDate = new Date(start);
-        dayDate.setDate(start.getDate() + index);
-        
-        // 为每天选择2-4个景点，避免重复
-        const dailyAttractions = selectRandomAttractions(
-          cityAttractions.attractions, 
-          Math.min(4, Math.max(2, cityAttractions.attractions.length / days))
-        );
-        
-        // 为每天选择1-2个餐厅
-        const dailyRestaurants = selectRandomAttractions(
-          cityAttractions.restaurants,
-          Math.min(2, Math.max(1, cityAttractions.restaurants.length / days))
-        );
-        
-        // 组合当天的活动
-        const dailyActivities = [];
-        
-        // 上午活动（通常是景点）
-        if (dailyAttractions.length > 0) {
-          dailyActivities.push({
-            time: "09:00",
-            duration: "2小时",
-            name: dailyAttractions[0].name,
-            type: "景点",
-            location: dailyAttractions[0].location || destination,
-            description: dailyAttractions[0].description || `这是${destination}的著名景点，您可以在这里体验当地文化。`,
-            cost: dailyAttractions[0].cost || "¥100"
-          });
-        }
-        
-        // 午餐
-        if (dailyRestaurants.length > 0) {
-          dailyActivities.push({
-            time: "12:00",
-            duration: "1.5小时",
-            name: dailyRestaurants[0].name,
-            type: "餐厅",
-            location: dailyRestaurants[0].location || `${destination}市中心`,
-            description: dailyRestaurants[0].description || "品尝当地特色美食，享受美妙的用餐体验。",
-            cost: dailyRestaurants[0].cost || "¥150"
-          });
-        }
-        
-        // 下午活动（景点）
-        if (dailyAttractions.length > 1) {
-          dailyActivities.push({
-            time: "14:30",
-            duration: "3小时",
-            name: dailyAttractions[1].name,
-            type: "景点",
-            location: dailyAttractions[1].location || `${destination}历史区`,
-            description: dailyAttractions[1].description || "深入了解当地文化和历史，参与互动体验。",
-            cost: dailyAttractions[1].cost || "¥120"
-          });
-        }
-        
-        // 晚餐
-        if (dailyRestaurants.length > 1) {
-          dailyActivities.push({
-            time: "18:30",
-            duration: "2小时",
-            name: dailyRestaurants[1].name,
-            type: "餐厅",
-            location: dailyRestaurants[1].location || `${destination}餐饮区`,
-            description: dailyRestaurants[1].description || "享用当地特色晚餐，结束美好的一天。",
-            cost: dailyRestaurants[1].cost || "¥180"
-          });
-        } 
-        // 晚间活动（可选）
-        else if (dailyAttractions.length > 2) {
-          dailyActivities.push({
-            time: "19:30",
-            duration: "2小时",
-            name: dailyAttractions[2].name,
-            type: "景点",
-            location: dailyAttractions[2].location || `${destination}夜景区`,
-            description: dailyAttractions[2].description || "欣赏美丽的城市夜景，拍摄难忘的照片。",
-            cost: dailyAttractions[2].cost || "¥80"
-          });
-        }
-        
-        return {
-          date: dayDate.toISOString().split('T')[0],
-          dayOverview: `第${index + 1}天：${cityAttractions.dayDescriptions[index % cityAttractions.dayDescriptions.length]}`,
-          activities: dailyActivities
-        };
-      }),
-      accommodation: cityAttractions.accommodation || "推荐入住当地四星级酒店或特色民宿，预算约为每晚¥300-600。",
-      transportation: cityAttractions.transportation || "市内交通可以选择出租车、公交或地铁，也可以考虑租赁自行车游览。"
-    };
-  };
-  
-  // 随机选择景点，避免重复
-  const selectRandomAttractions = (attractions, count) => {
-    const selected = [];
-    const availableAttractions = [...attractions];
-    
-    for (let i = 0; i < count && availableAttractions.length > 0; i++) {
-      const randomIndex = Math.floor(Math.random() * availableAttractions.length);
-      selected.push(availableAttractions[randomIndex]);
-      availableAttractions.splice(randomIndex, 1);
-    }
-    
-    return selected;
-  };
-  
-  // 根据城市名获取对应的景点数据
-  const getCityAttractions = (cityName) => {
-    // 标准化城市名称（去除"市"、"省"等后缀，转为小写）
-    const normalizedCity = cityName.replace(/市|省|自治区|特别行政区/g, '').toLowerCase();
-    
-    // 城市景点数据库
-    const cityData = {
-      // 北京景点
-      '北京': {
-        attractions: [
-          { name: '故宫博物院', location: '北京市东城区景山前街4号', description: '世界上现存规模最大、保存最为完整的木质结构古建筑之一，是中国明清两代的皇家宫殿。', cost: '¥60-100' },
-          { name: '长城（八达岭段）', location: '北京市延庆区军都山关沟古道', description: '中国古代伟大的防御工程，被誉为世界七大奇迹之一。', cost: '¥35-40' },
-          { name: '天安门广场', location: '北京市东城区东长安街', description: '世界上最大的城市中心广场，可以参观天安门城楼、人民英雄纪念碑等。', cost: '免费' },
-          { name: '颐和园', location: '北京市海淀区新建宫门路19号', description: '中国现存规模最大、保存最完整的皇家园林，被誉为"皇家园林博物馆"。', cost: '¥20-30' },
-          { name: '天坛公园', location: '北京市东城区天坛内东里7号', description: '中国古代帝王祭天的场所，是中国现存规模最大、最完整的古代祭祀建筑群。', cost: '¥15-30' },
-          { name: '恭王府', location: '北京市西城区前海西街17号', description: '清代规模最大的一处王府，被誉为"北京紫禁城外唯一完整的清代王府"。', cost: '¥40' },
-          { name: '798艺术区', location: '北京市朝阳区酒仙桥路4号', description: '由废弃的军工厂改造而成的艺术区，聚集了大量画廊、艺术工作室和设计公司。', cost: '免费' }
-        ],
-        restaurants: [
-          { name: '全聚德烤鸭店', location: '北京市东城区前门大街30号', description: '始创于1864年的老字号，以其独特的挂炉烤鸭闻名。', cost: '¥200/人' },
-          { name: '四季民福烤鸭', location: '北京市东城区王府井大街', description: '拥有70多年历史的老字号烤鸭店，肉质鲜嫩多汁。', cost: '¥150/人' },
-          { name: '南锣鼓巷小吃街', location: '北京市东城区南锣鼓巷', description: '汇集了豆汁、炒肝、爆肚等北京传统小吃。', cost: '¥50-100/人' },
-          { name: '老舍茶馆', location: '北京市西城区前门西大街3号楼', description: '可以品尝各种中国茶和传统小吃，还有京剧、相声等表演。', cost: '¥150-300/人' }
-        ],
-        dayDescriptions: [
-          '探索紫禁城的皇家历史',
-          '登长城，做真好汉',
-          '体验现代与传统交融的北京',
-          '漫步皇家园林和古典建筑',
-          '感受北京小吃和地道美食'
-        ],
-        accommodation: '推荐入住王府井或前门附近的酒店，交通便利，周边设施齐全。豪华酒店价格在¥800-2000/晚，经济型酒店价格在¥300-600/晚。',
-        transportation: '北京公共交通发达，地铁覆盖主要景点，单程票价¥3-9。出租车起步价¥13，景点间通常¥30-50。也可考虑共享单车短途代步。'
-      },
-      
-      // 上海景点
-      '上海': {
-        attractions: [
-          { name: '外滩', location: '上海市黄浦区中山东一路', description: '上海最著名的地标之一，可以欣赏到黄浦江两岸的美丽景色。', cost: '免费' },
-          { name: '上海迪士尼乐园', location: '上海市浦东新区川沙新镇', description: '中国内地首个迪士尼主题乐园，拥有七大主题园区。', cost: '¥399-699' },
-          { name: '豫园', location: '上海市黄浦区安仁街218号', description: '明代私家花园，是江南古典园林的代表作之一。', cost: '¥40-50' },
-          { name: '上海科技馆', location: '上海市浦东新区世纪大道2000号', description: '中国规模最大的科技馆之一，展示丰富的科技成果。', cost: '¥45-60' },
-          { name: '田子坊', location: '上海市黄浦区泰康路210号', description: '石库门建筑改造的创意园区，汇集了各种特色小店和艺术工作室。', cost: '免费' },
-          { name: '南京路步行街', location: '上海市黄浦区南京东路', description: '中国第一条商业步行街，汇集了各种商场、专卖店和餐厅。', cost: '免费' }
-        ],
-        restaurants: [
-          { name: '南翔馒头店', location: '上海市黄浦区豫园老街城隍庙内', description: '创建于1900年的老字号，以小笼包闻名。', cost: '¥60-100/人' },
-          { name: '绿波廊', location: '上海市黄浦区豫园老街内', description: '创建于清代的老字号，以本帮菜闻名。', cost: '¥100-200/人' },
-          { name: '外滩万国建筑群', location: '上海市黄浦区中山东一路', description: '可以欣赏到富有特色的西式建筑和黄浦江美景。', cost: '免费' },
-          { name: '西郊国际农产品交易中心', location: '上海市长宁区虹桥路1000号', description: '亚洲最大的农产品交易市场之一，有各种海鲜和蔬果。', cost: '¥200-300/人' }
-        ],
-        dayDescriptions: [
-          '感受魔都的现代与传统',
-          '探索上海的历史街区和文化',
-          '体验上海的时尚购物天堂',
-          '品尝上海美食和本帮菜',
-          '游览江南水乡风光'
-        ],
-        accommodation: '推荐入住外滩、南京路或淮海路附近的酒店，交通便利，周边设施齐全。豪华酒店价格在¥1000-3000/晚，经济型酒店价格在¥300-800/晚。',
-        transportation: '上海公共交通发达，地铁覆盖主要景点，单程票价¥3-9。出租车起步价¥14，景点间通常¥30-60。也可考虑共享单车短途代步。'
-      },
-      
-      // 广州景点
-      '广州': {
-        attractions: [
-          { name: '广州塔', location: '广州市海珠区阅江西路222号', description: '广州的地标性建筑，是世界第四高塔，可以俯瞰整个广州城区。', cost: '¥150-220' },
-          { name: '沙面岛', location: '广州市荔湾区沙面街道', description: '19世纪末期的欧洲风格建筑群，现为广州著名的旅游和婚纱摄影胜地。', cost: '免费' },
-          { name: '陈家祠', location: '广州市荔湾区中山七路', description: '清代岭南古建筑的典范，精美的木雕、石雕、砖雕和陶塑闻名于世。', cost: '¥10-20' },
-          { name: '白云山', location: '广州市白云区白云大道南', description: '广州市区内的一座著名山脉，是广州的"城市绿肺"。', cost: '¥5-20' },
-          { name: '上下九步行街', location: '广州市荔湾区上下九路', description: '广州最古老的商业街之一，汇集了各种老字号和特色小吃。', cost: '免费' }
-        ],
-        restaurants: [
-          { name: '广州酒家', location: '广州市越秀区文明路112号', description: '始创于1935年的老字号，以粤菜和点心闻名。', cost: '¥100-200/人' },
-          { name: '陶陶居', location: '广州市荔湾区第十甫路20号', description: '创建于1880年的老字号，以早茶和点心闻名。', cost: '¥80-150/人' },
-          { name: '莲香楼', location: '广州市荔湾区第十甫路67号', description: '始建于1889年的老字号，以传统粤式点心闻名。', cost: '¥80-150/人' },
-          { name: '南园酒家', location: '广州市海珠区革新路', description: '创建于1935年的老字号，以粤菜和早茶闻名。', cost: '¥100-200/人' }
-        ],
-        dayDescriptions: [
-          '体验广州现代都市魅力',
-          '探索岭南文化与历史',
-          '品尝地道广州早茶与美食',
-          '感受花城绿色生态',
-          '探索珠三角水乡风情'
-        ],
-        accommodation: '推荐入住越秀区或天河区的酒店，交通便利，周边设施齐全。豪华酒店价格在¥800-2000/晚，经济型酒店价格在¥200-500/晚。',
-        transportation: '广州公共交通发达，地铁覆盖主要景点，单程票价¥2-8。出租车起步价¥10，景点间通常¥20-40。也可考虑共享单车短途代步。'
-      },
-      
-      // 杭州景点
-      '杭州': {
-        attractions: [
-          { name: '西湖', location: '杭州市西湖区', description: '中国十大风景名胜之一，以"西湖十景"闻名于世。', cost: '免费' },
-          { name: '灵隐寺', location: '杭州市西湖区灵隐路法云弄1号', description: '中国佛教禅宗十大古刹之一，始建于东晋。', cost: '¥30-45' },
-          { name: '千岛湖', location: '杭州市淳安县', description: '中国五大淡水湖之一，有1078个岛屿点缀其中。', cost: '¥150-180' },
-          { name: '宋城景区', location: '杭州市西湖区之江路148号', description: '大型宋代文化主题公园，以《宋城千古情》表演闻名。', cost: '¥290' },
-          { name: '西溪湿地', location: '杭州市西湖区天目山路518号', description: '中国首个国家级湿地公园，被誉为"城市中的绿肺"。', cost: '¥80' }
-        ],
-        restaurants: [
-          { name: '楼外楼', location: '杭州市西湖区孤山路30号', description: '创建于1848年的老字号，以西湖醋鱼、东坡肉等杭帮菜闻名。', cost: '¥200-300/人' },
-          { name: '知味观', location: '杭州市上城区河坊街92号', description: '创建于1913年的老字号，以小笼包、叫花鸡等特色菜闻名。', cost: '¥100-200/人' },
-          { name: '外婆家', location: '杭州市西湖区黄龙路2号', description: '杭州本土连锁餐厅，提供平价杭帮家常菜。', cost: '¥80-150/人' },
-          { name: '龙井茶室', location: '杭州市西湖区龙井路1号', description: '位于龙井村内，可以品尝正宗的龙井茶和当地小吃。', cost: '¥50-100/人' }
-        ],
-        dayDescriptions: [
-          '漫步西湖，领略人间天堂美景',
-          '探访古刹名胜与历史文化',
-          '品味杭帮美食与龙井茶韵',
-          '体验江南水乡风情',
-          '探索杭州的现代与传统'
-        ],
-        accommodation: '推荐入住西湖周边的酒店，方便游览主要景点。豪华酒店价格在¥800-2000/晚，经济型酒店价格在¥300-600/晚。',
-        transportation: '杭州公共交通便利，公交车和地铁可抵达主要景点。出租车起步价¥11，景点间通常¥20-40。西湖周边也可租赁自行车游览。'
-      },
-      
-      // 成都景点
-      '成都': {
-        attractions: [
-          { name: '成都大熊猫繁育研究基地', location: '成都市成华区熊猫大道1375号', description: '世界著名的大熊猫繁育和研究机构，可以近距离观看大熊猫。', cost: '¥58' },
-          { name: '锦里古街', location: '成都市武侯区武侯祠大街231号', description: '成都最古老的商业街之一，有三国文化特色。', cost: '免费' },
-          { name: '宽窄巷子', location: '成都市青羊区金河路口', description: '保存完好的清朝古街区，展示了成都的历史和文化。', cost: '免费' },
-          { name: '武侯祠', location: '成都市武侯区武侯祠大街231号', description: '中国唯一的君臣合祀祠庙，祭祀刘备和诸葛亮。', cost: '¥60' },
-          { name: '青城山', location: '成都市都江堰市青城山镇', description: '中国道教发源地之一，被誉为"青城天下幽"。', cost: '¥90' },
-          { name: '都江堰', location: '成都市都江堰市公园路', description: '世界文化遗产，中国古代水利工程的杰出代表。', cost: '¥90' }
-        ],
-        restaurants: [
-          { name: '陈麻婆豆腐', location: '成都市青羊区西玉龙街197号', description: '创建于1862年的老字号，以麻婆豆腐闻名。', cost: '¥80-150/人' },
-          { name: '龙抄手', location: '成都市锦江区人民东路61号', description: '创建于1958年的老字号，以抄手（馄饨）闻名。', cost: '¥30-60/人' },
-          { name: '夫妻肺片', location: '成都市锦江区盐市口顺城大街，', description: '成都特色小吃，以其麻辣鲜香的口味闻名。', cost: '¥40-80/人' },
-          { name: '钟水饺', location: '成都市青羊区鼓楼街23号', description: '创建于1893年的老字号，以水饺和小吃闻名。', cost: '¥40-80/人' }
-        ],
-        dayDescriptions: [
-          '萌趣熊猫与天府文化',
-          '探索古蜀文明与三国遗迹',
-          '品味成都麻辣美食与茶文化',
-          '感受青城山道教文化与自然风光',
-          '体验成都慢生活与休闲韵味'
-        ],
-        accommodation: '推荐入住春熙路、太古里或宽窄巷子附近的酒店，交通便利，周边设施齐全。豪华酒店价格在¥600-1500/晚，经济型酒店价格在¥200-500/晚。',
-        transportation: '成都公共交通便利，地铁和公交车可抵达主要景点。出租车起步价¥8，景点间通常¥15-30。市区也可考虑共享单车短途代步。'
-      }
-    };
-    
-    // 如果找到城市数据，返回；否则返回默认数据
-    for (const city in cityData) {
-      if (normalizedCity.includes(city) || city.includes(normalizedCity)) {
-        return cityData[city];
-      }
-    }
-    
-    // 提供一个默认的数据结构
-    return {
-      attractions: [
-        { name: `${cityName}著名景点1`, location: `${cityName}市中心`, description: '这是一个著名的旅游景点，您可以在这里体验当地文化。', cost: '¥100' },
-        { name: `${cityName}历史博物馆`, location: `${cityName}文化区`, description: '了解当地历史和文化的重要场所。', cost: '¥80' },
-        { name: `${cityName}公园`, location: `${cityName}休闲区`, description: '放松身心，欣赏美丽的自然风光的好去处。', cost: '¥50' },
-        { name: `${cityName}古街`, location: `${cityName}老城区`, description: '充满历史韵味的古老街道，有许多特色店铺。', cost: '免费' }
-      ],
-      restaurants: [
-        { name: `${cityName}特色餐厅`, location: `${cityName}市中心`, description: '提供当地特色美食，享受美妙的用餐体验。', cost: '¥150/人' },
-        { name: `${cityName}美食广场`, location: `${cityName}商业区`, description: '汇集各种当地小吃和特色菜肴。', cost: '¥100/人' }
-      ],
-      dayDescriptions: [
-        `探索${cityName}的主要景点`,
-        `体验${cityName}的文化与历史`,
-        `品味${cityName}的特色美食`,
-        `感受${cityName}的自然风光`,
-        `体验${cityName}的现代与传统`
-      ],
-      accommodation: `推荐入住${cityName}市中心附近的酒店，交通便利，周边设施齐全。`,
-      transportation: `${cityName}公共交通便利，建议使用公交车、地铁或出租车前往各景点。`
-    };
-  };
   
   // 处理生成的行程数据
   const processGeneratedPlan = async (plan) => {

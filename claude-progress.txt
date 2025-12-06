@@ -1,3 +1,28 @@
+## Session: 2025-12-06 20:00 移除mock数据
+
+### 完成的工作
+
+**移除所有硬编码mock数据**
+- 删除 `generateMockTravelPlan` 函数 (aiService.js)
+- 删除 `getMockTravelPlan`, `selectRandomAttractions`, `getCityAttractions` 函数 (ItineraryPage.js)
+- 删除约300行硬编码城市景点数据(北京/上海/广州等)
+- 所有错误情况返回 `{ error, errorDetails, canRetry: true }` 对象让用户重试
+
+**错误处理改进**
+- JSON解析失败时返回详细错误,不再使用mock数据填充
+- 验证days数组和activities时返回具体错误信息
+- 429频率限制显示友好提示
+
+### 代码变更统计
+- src/api/aiService.js: 重构错误处理逻辑
+- src/pages/ItineraryPage.js: -313行 (删除硬编码mock数据)
+- 生产构建成功: 487KB (gzip)
+
+### 下一步
+- 部署到服务器 82.156.165.90
+
+---
+
 ## Session: 2025-12-06 Docker部署完成
 
 ### 完成的工作
@@ -36,12 +61,3 @@
 cd ~/JourneyBox
 sudo ./deploy.sh
 ```
-
-### 下一步（可选）
-- 清理ESLint警告（47个警告，不影响运行）
-- 配置HTTPS（Let's Encrypt）
-- 添加域名解析
-
-### 已知问题
-- 无重大问题
-- ESLint警告为代码质量问题，不影响功能

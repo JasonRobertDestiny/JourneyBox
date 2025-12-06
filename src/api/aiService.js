@@ -4,9 +4,9 @@ import axios from 'axios';
 const DEEPWISDOM_API_KEY = process.env.REACT_APP_DEEPWISDOM_API_KEY || '';
 const DEEPWISDOM_BASE_URL = process.env.REACT_APP_DEEPWISDOM_BASE_URL || 'https://newapi.deepwisdom.ai/v1';
 const DEEPWISDOM_MODEL = process.env.REACT_APP_DEEPWISDOM_MODEL || 'gpt-4o';
-// DeepWisdom chat/completions 默认上限约4k tokens，这里留出安全缓冲
-const DEEPWISDOM_COMPLETION_TOKEN_LIMIT = 3500;
-const DEEPWISDOM_OPTIMIZATION_TOKEN_LIMIT = 3000;
+// 限制token数量确保响应完整
+const DEEPWISDOM_COMPLETION_TOKEN_LIMIT = 2000;
+const DEEPWISDOM_OPTIMIZATION_TOKEN_LIMIT = 4000;
 
 // 运行时校验环境变量，避免在构建产物中泄露密钥
 if (!DEEPWISDOM_API_KEY) {
@@ -38,6 +38,88 @@ const openaiClient = axios.create({
 let lastRequestTime = 0;
 const minRequestInterval = 5000; // 增加到5秒的最小请求间隔时间，避免频率限制
 
+// 修复截断的JSON - 尝试关闭所有未关闭的括号和字符串
+const repairTruncatedJson = (str) => {
+  console.log('【截断修复】开始修复截断的JSON...');
+
+  let result = str.trim();
+
+  // 移除末尾的不完整部分 (如 "name": " 或 "description": "xxx)
+  // 找到最后一个完整的属性值
+  const lastCompletePattern = /,?\s*"[^"]*"\s*:\s*"[^"]*"?\s*$/;
+  const incompleteMatch = result.match(lastCompletePattern);
+  if (incompleteMatch && !result.endsWith('"')) {
+    // 如果末尾有不完整的字符串值，尝试关闭它
+    result = result + '"';
+  }
+
+  // 移除末尾不完整的属性定义 (如 { "name":  或 "time": )
+  result = result.replace(/,?\s*"[^"]*"\s*:\s*$/g, '');
+
+  // 计算需要关闭的括号
+  let braceCount = 0;  // {}
+  let bracketCount = 0; // []
+  let inString = false;
+  let escapeNext = false;
+
+  for (let i = 0; i < result.length; i++) {
+    const char = result[i];
+
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      escapeNext = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (!inString) {
+      if (char === '{') braceCount++;
+      else if (char === '}') braceCount--;
+      else if (char === '[') bracketCount++;
+      else if (char === ']') bracketCount--;
+    }
+  }
+
+  // 如果在字符串中截断，关闭字符串
+  if (inString) {
+    result += '"';
+  }
+
+  // 移除末尾的逗号
+  result = result.replace(/,\s*$/, '');
+
+  // 关闭所有未关闭的括号
+  while (bracketCount > 0) {
+    result += ']';
+    bracketCount--;
+  }
+  while (braceCount > 0) {
+    result += '}';
+    braceCount--;
+  }
+
+  console.log('【截断修复】修复后的JSON末尾:', result.slice(-100));
+
+  // 验证修复是否成功
+  try {
+    JSON.parse(result);
+    console.log('【截断修复】修复成功！');
+    return result;
+  } catch (e) {
+    console.error('【截断修复】修复后仍然无效:', e.message);
+    // 返回修复后的结果，让后续的默认数据填充处理
+    return result;
+  }
+};
+
 // JSON修复函数 - 尝试修复常见的JSON格式问题
 const fixJsonString = (str) => {
   try {
@@ -50,7 +132,17 @@ const fixJsonString = (str) => {
     // 修复常见的JSON格式问题
     let fixed = str;
 
-    // 1. 修复中文标点符号 (最优先处理,因为这是最常见的问题)
+    // 0. 修复AI生成的畸形属性名 (最高优先级，因为这会破坏整个JSON结构)
+    // 修复 "-description-:" 或 "-cost-:" 这种格式 -> "description": 或 "cost":
+    fixed = fixed.replace(/"-([a-zA-Z_][a-zA-Z0-9_]*)-:"\s*/g, '"$1": "');
+    fixed = fixed.replace(/"-([a-zA-Z_][a-zA-Z0-9_]*)-:"([^"]*)/g, '"$1": "$2');
+    // 修复 "-date-": 或 "-time-": 这种格式
+    fixed = fixed.replace(/"-([a-zA-Z_][a-zA-Z0-9_]*)-"\s*:/g, '"$1":');
+    // 修复 "__property__": 或 "_property_": 格式
+    fixed = fixed.replace(/"__([a-zA-Z_][a-zA-Z0-9_]*)__"\s*:/g, '"$1":');
+    fixed = fixed.replace(/"_([a-zA-Z_][a-zA-Z0-9_]*)_"\s*:/g, '"$1":');
+
+    // 1. 修复中文标点符号 (因为这是最常见的问题)
     fixed = fixed.replace(/：/g, ':');        // 中文冒号
     fixed = fixed.replace(/，/g, ',');        // 中文逗号
     fixed = fixed.replace(/"/g, '"');         // 中文左引号
@@ -73,6 +165,11 @@ const fixJsonString = (str) => {
     fixed = fixed.replace(/"time"\s*:\s*(\d+:\d+)/g, '"time": "$1"');
     fixed = fixed.replace(/"duration"\s*:\s*(\d+)/g, '"duration": "$1"');
 
+    // 6. 修复缺失的逗号（在 "}" 或 "]" 后面跟 """ 的情况）
+    fixed = fixed.replace(/([}\]])(\s*")/g, '$1,$2');
+    // 但不要在最外层添加逗号
+    fixed = fixed.replace(/\},$/, '}');
+
     console.log('【JSON修复】修复后内容前500字:', fixed.substring(0, 500));
 
     // 尝试解析修复后的JSON
@@ -87,10 +184,34 @@ const fixJsonString = (str) => {
       // 提取JSON主体部分
       const jsonMatch = fixed.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        return jsonMatch[0];
+        let extracted = jsonMatch[0];
+        // 再次尝试修复
+        try {
+          JSON.parse(extracted);
+          return extracted;
+        } catch (e3) {
+          // 最后尝试：移除可能破坏结构的字符
+          extracted = extracted
+            .replace(/\n/g, ' ')
+            .replace(/\r/g, '')
+            .replace(/\t/g, ' ')
+            .replace(/\s+/g, ' ');
+
+          // 尝试修复截断的JSON - 关闭所有未关闭的括号
+          try {
+            JSON.parse(extracted);
+            return extracted;
+          } catch (e4) {
+            console.log('【JSON修复】检测到截断的JSON，尝试自动补全...');
+            extracted = repairTruncatedJson(extracted);
+            return extracted;
+          }
+        }
       }
 
-      return str; // 返回原始字符串
+      // 尝试修复截断的JSON
+      console.log('【JSON修复】尝试修复截断的JSON...');
+      return repairTruncatedJson(fixed);
     }
   }
 };
@@ -159,62 +280,20 @@ export const generateTravelPlan = async (tripData) => {
     const end = new Date(endDate);
     const days = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1);
 
-    // 生成高质量的旅行计划提示词 - 优化版
-    const prompt = `你是一位专业旅行规划师,请为${destination}制定${days}天真实可行的旅行计划。
+    // 生成高质量的旅行计划提示词 - 简化版
+    const prompt = `为${destination}制定${days}天旅行计划。
 
-【核心要求】
-1. 所有景点、餐厅必须是${destination}真实存在的知名场所
-2. 提供准确的地址、开放时间、门票价格
-3. 行程安排要符合实际交通和时间逻辑
-4. 每天4-5个活动,包含景点、餐饮、休息
+需求: ${destination}, ${startDate}到${endDate}, ${budget || '中等'}预算, ${Array.isArray(interests) ? interests.join('/') : interests || '文化'}
 
-【用户需求】
-- 目的地: ${destination}
-- 日期: ${startDate}到${endDate}(${days}天)
-- 预算: ${budget || '中等'}
-- 兴趣: ${Array.isArray(interests) ? interests.join('、') : interests || '文化历史美食'}
-- 风格: ${travelStyle || '轻松休闲'}
-- 人员: ${Array.isArray(participants) ? participants.join('、') : participants || '成人'}
+【重要】每天只安排3个活动，description最多30字！必须返回完整JSON！
 
-【必须包含】
-- 第1天: ${destination}标志性景点(故宫/外滩/西湖等地标)
-- 中间天: 特色景点+当地美食体验
-- 最后天: 轻松购物+返程准备
-
-【重要】必须严格返回标准JSON格式，所有属性名和字符串值都必须用双引号包围！
-
-示例格式:
+返回格式:
 {
-  "overview": "${destination}${days}日游,深度体验历史文化与地道美食",
-  "tips": "最佳季节建议、穿着提示、交通卡办理、预约提醒等实用信息",
-  "days": [
-    {
-      "date": "${startDate}",
-      "dayOverview": "抵达${destination},开启文化探索之旅",
-      "activities": [
-        {
-          "time": "09:00",
-          "duration": "120",
-          "name": "真实景点名称",
-          "type": "景点",
-          "location": "完整地址",
-          "description": "景点历史背景、特色看点、游玩建议",
-          "cost": "60元,需预约"
-        },
-        {
-          "time": "12:00",
-          "duration": "90",
-          "name": "当地特色餐厅",
-          "type": "餐厅",
-          "location": "餐厅地址",
-          "description": "招牌菜品、就餐体验、人均消费",
-          "cost": "人均150-200元"
-        }
-      ]
-    }
-  ],
-  "accommodation": "推荐3家酒店说明",
-  "transportation": "交通建议说明"
+  "overview": "简短概述",
+  "tips": "实用提示",
+  "days": [{"date": "${startDate}", "dayOverview": "当日主题", "activities": [{"time": "09:00", "duration": "120", "name": "景点名", "type": "景点", "location": "地址", "description": "30字内描述", "cost": "价格"}]}],
+  "accommodation": "酒店建议",
+  "transportation": "交通建议"
 }`;
 
     // 使用重试机制发送请求
@@ -225,7 +304,7 @@ export const generateTravelPlan = async (tripData) => {
         messages: [
           {
             role: 'system',
-            content: '你是专业旅行规划师,熟悉中国各城市真实旅游资源。你必须:\n1.只推荐真实存在的知名景点和餐厅\n2.提供准确的地址、价格、开放时间\n3.返回标准JSON格式,不加任何markdown标记\n4.确保行程时间合理,交通便利\n5.景点描述要具体实用,包含历史背景和游玩建议'
+            content: '你是专业旅行规划师。【关键要求】必须返回完整的JSON，不能截断！\n\n规则:\n1.只推荐真实景点餐厅\n2.返回标准JSON,无markdown\n3.description字段最多30字！\n4.每天最多3个活动\n5.必须包含完整的days数组和所有闭合括号\n\n【JSON格式】\n- 属性名标准格式: "name": "value"\n- 禁止装饰符号如 "-name-:"\n- 必须完整闭合所有括号'
           },
           {
             role: 'user',
@@ -282,8 +361,10 @@ export const generateTravelPlan = async (tripData) => {
         content = content.substring(jsonStart, jsonEnd + 1);
       }
 
-      // 核心修复: 移除字段名中的下划线包裹
+      // 预处理: 移除字段名中的畸形字符，在fixJsonString之前做一次初步清理
       content = content
+        .replace(/"-([a-zA-Z_][a-zA-Z0-9_]*)-:"/g, '"$1": "')  // "-description-:" -> "description": "
+        .replace(/"-([a-zA-Z_][a-zA-Z0-9_]*)-"\s*:/g, '"$1":') // "-time-": -> "time":
         .replace(/"__([^"]+)__"\s*:/g, '"$1":')   // "__time__" -> "time"
         .replace(/"_([^"]+)_"\s*:/g, '"$1":')     // "_time_" -> "time"
         // 修复多余逗号
@@ -305,18 +386,20 @@ export const generateTravelPlan = async (tripData) => {
           console.error('【验证失败】缺少days数组或为空');
           return {
             error: 'AI生成的行程数据不完整',
-            errorDetails: '缺少每日行程安排'
+            errorDetails: '缺少每日行程安排，请重试',
+            canRetry: true
           };
         }
 
-        // 验证每天的活动
+        // 验证每天的活动数据完整性
         for (let i = 0; i < parsed.days.length; i++) {
           const day = parsed.days[i];
           if (!day.activities || !Array.isArray(day.activities) || day.activities.length === 0) {
-            console.error(`【验证失败】第${i+1}天缺少活动安排`);
+            console.error(`【验证失败】第${i+1}天缺少活动数据`);
             return {
               error: 'AI生成的行程数据不完整',
-              errorDetails: `第${i+1}天缺少活动安排`
+              errorDetails: `第${i+1}天缺少活动安排，请重试`,
+              canRetry: true
             };
           }
         }
@@ -328,14 +411,21 @@ export const generateTravelPlan = async (tripData) => {
         console.error('【原始内容】', content.substring(0, 500));
         console.error('【修复后内容】', fixedContent.substring(0, 500));
 
-        // 尝试返回一个默认的结构
-        console.log('【尝试使用模拟数据】');
-        return generateMockTravelPlan(tripData.destination, tripData.startDate, tripData.endDate, days);
+        // 返回解析错误，让用户重试
+        return {
+          error: 'AI返回的数据格式异常',
+          errorDetails: `JSON解析失败: ${parseError.message}。请重试。`,
+          canRetry: true
+        };
       }
     }
 
     console.error('【响应错误】API响应格式异常');
-    return { error: 'API响应格式错误', errorDetails: '未收到有效的AI响应' };
+    return {
+      error: 'API响应格式错误',
+      errorDetails: '未收到有效的AI响应，请重试',
+      canRetry: true
+    };
   } catch (error) {
     console.error('【生成失败】', error.message);
     console.error('【错误详情】', {
@@ -620,57 +710,4 @@ export const askTravelQuestion = async (question, tripContext) => {
   }
 };
 
-// 生成模拟的旅行计划数据（演示模式）
-const generateMockTravelPlan = (destination, startDate, endDate, days) => {
-  const mockActivities = [
-    { name: '故宫博物院', type: '景点', description: '世界文化遗产，明清两代皇家宫殿', cost: '60元' },
-    { name: '天坛公园', type: '景点', description: '明清皇帝祭天祈谷的场所', cost: '35元' },
-    { name: '颐和园', type: '景点', description: '皇家园林博物馆', cost: '30元' },
-    { name: '长城', type: '景点', description: '世界文化遗产，中国古代军事防御工程', cost: '45元' },
-    { name: '全聚德烤鸭', type: '餐厅', description: '北京烤鸭百年老字号', cost: '200元/人' },
-    { name: '老北京炸酱面', type: '餐厅', description: '地道北京传统美食', cost: '30元/人' },
-    { name: '南锣鼓巷', type: '景点', description: '北京最古老的街区之一', cost: '免费' },
-    { name: '798艺术区', type: '景点', description: '当代艺术文化创意产业集聚区', cost: '免费' }
-  ];
-
-  const result = {
-    overview: `${destination}${days}天精品游，涵盖主要景点、特色美食和文化体验`,
-    tips: '建议穿着舒适的鞋子，准备好防晒用品。景点可能需要提前预约，请关注官方公众号。',
-    days: []
-  };
-
-  // 为每一天生成活动
-  for (let i = 0; i < days; i++) {
-    const dayDate = new Date(startDate);
-    dayDate.setDate(dayDate.getDate() + i);
-
-    const dayActivities = [];
-    const activitiesPerDay = 4 + Math.floor(Math.random() * 2); // 每天4-5个活动
-
-    for (let j = 0; j < activitiesPerDay; j++) {
-      const activity = mockActivities[Math.floor(Math.random() * mockActivities.length)];
-      const hour = 9 + j * 2; // 从9点开始，每2小时一个活动
-
-      dayActivities.push({
-        time: `${hour < 10 ? '0' : ''}${hour}:00`,
-        duration: '120',
-        name: activity.name,
-        type: activity.type,
-        location: `${destination}市区`,
-        description: activity.description,
-        cost: activity.cost
-      });
-    }
-
-    result.days.push({
-      date: dayDate.toISOString().split('T')[0],
-      dayOverview: `第${i + 1}天: 探索${destination}的精彩景点`,
-      activities: dayActivities
-    });
-  }
-
-  result.accommodation = `推荐住宿：1. 五星级酒店（800-1200元/晚） 2. 精品民宿（300-500元/晚） 3. 经济型酒店（150-250元/晚）`;
-  result.transportation = `交通建议：机场/火车站可乘坐地铁或出租车到市区。市内建议使用地铁、公交或打车，日均交通费约50-100元。`;
-
-  return result;
-}; 
+ 
