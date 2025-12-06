@@ -1,42 +1,42 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  Modal, 
-  Checkbox, 
-  Drawer, 
-  Tabs, 
-  Card, 
-  Timeline, 
-  List, 
-  Tag, 
-  Button, 
-  Radio, 
-  Select, 
-  Alert, 
-  Spin, 
-  Collapse, 
-  Rate, 
-  Image, 
+import {
+  Modal,
+  Checkbox,
+  Tabs,
+  Card,
+  Timeline,
+  List,
+  Tag,
+  Button,
+  Radio,
+  Select,
+  Alert,
+  Spin,
+  Collapse,
+  Rate,
+  Image,
   Avatar,
-  Result
+  Result,
+  Input,
+  message
 } from 'antd';
-import { 
-  EditOutlined, 
-  ShareAltOutlined, 
-  SaveOutlined, 
-  EnvironmentOutlined, 
-  ClockCircleOutlined, 
-  ThunderboltOutlined, 
-  CheckCircleFilled, 
-  LoadingOutlined, 
-  DeleteOutlined, 
-  PlusOutlined, 
+import {
+  EditOutlined,
+  ShareAltOutlined,
+  SaveOutlined,
+  EnvironmentOutlined,
+  ClockCircleOutlined,
+  ThunderboltOutlined,
+  CheckCircleFilled,
+  LoadingOutlined,
+  DeleteOutlined,
+  PlusOutlined,
   ArrowRightOutlined,
   DollarOutlined
 } from '@ant-design/icons';
 import Header from '../components/Header';
 import { getTripDetailsById } from '../api/tripService';
-import { mapBackgroundUrl, mapCoordinates } from '../assets/map-background';
 import '../styles/ItineraryPage.css';
 import { optimizeTripPlan, generateTravelPlan } from '../api/aiService';
 import { searchPlaceImages } from '../api/unsplashService';
@@ -44,6 +44,12 @@ import UnsplashImage from '../components/UnsplashImage';
 import UnsplashAttribution from '../components/UnsplashAttribution';
 import LoadingScreen from '../components/LoadingScreen';
 import GeneratingAnimation from '../components/GeneratingAnimation';
+import MapView from '../components/MapView';
+import AIChatDrawer from '../components/AIChatDrawer';
+import { batchGeocode } from '../api/mapService';
+import { getCityDefaultCoords } from '../utils/cityCoordinates';
+
+const MAP_CONTAINER_HEIGHT = 420; // 地图容器固定高度，避免页面跳动
 
 const { TabPane } = Tabs;
 const { Option } = Select;
@@ -87,9 +93,6 @@ function ItineraryPage() {
   const [loading, setLoading] = useState(true);
   const [currentDayIndex, setCurrentDayIndex] = useState(0); // 默认显示总览
   const [dailyTimeRange, setDailyTimeRange] = useState({ start: 9, end: 19 }); // 默认9:00-19:00
-  const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
-  const [aiQuestion, setAiQuestion] = useState('');
-  const [aiResponse, setAiResponse] = useState('');
   const [placeDetail, setPlaceDetail] = useState(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [selectedPlaces, setSelectedPlaces] = useState([]);
@@ -122,7 +125,7 @@ function ItineraryPage() {
   // 添加缺失的状态变量
   const [isInOfflineMode, setIsInOfflineMode] = useState(false);
   const [offlineReason, setOfflineReason] = useState('');
-  const [isError, setIsError] = useState(false);
+  const [_isError, setIsError] = useState(false); // eslint-disable-line no-unused-vars
   const [isLoading, setIsLoading] = useState(false);
   const [itineraryData, setItineraryData] = useState(null);
   
@@ -291,22 +294,6 @@ function ItineraryPage() {
     }
   };
   
-  // 处理AI助手问题提交
-  const handleAiQuestionSubmit = (e) => {
-    e.preventDefault();
-    if (!aiQuestion.trim()) return;
-    
-    // 模拟AI响应
-    setAiResponse(`关于"${aiQuestion}"的回答：这是一个模拟的AI助手回答，实际应用中应调用相应的AI服务。`);
-    setAiQuestion('');
-    setIsAiAssistantOpen(true); // 打开AI助手对话框
-  };
-  
-  // 关闭AI助手
-  const handleCloseAiAssistant = () => {
-    setIsAiAssistantOpen(false);
-  };
-  
   // 处理预约功能
   const handleBookingOpen = () => {
     setSelectedPlaces([]);
@@ -370,6 +357,38 @@ function ItineraryPage() {
     }
     
     return [];
+  };
+
+  // 获取地图展示所需的活动列表
+  const getMapActivities = () => {
+    if (!tripDetails?.itinerary?.days) return [];
+
+    if (mapDisplayMode === 'daily') {
+      const dayIdx = currentDayIndex > 0 ? currentDayIndex - 1 : 0;
+      const day = tripDetails.itinerary.days[dayIdx];
+      if (!day) return [];
+      return day.places
+        .filter(p => p.location?.lat && p.location?.lng)
+        .map(p => ({
+          name: p.name,
+          lat: p.location.lat,
+          lng: p.location.lng,
+          address: p.address,
+          description: p.description
+        }));
+    }
+
+    // 全程总览模式
+    return tripDetails.itinerary.days
+      .flatMap(d => d.places || [])
+      .filter(p => p.location?.lat && p.location?.lng)
+      .map(p => ({
+        name: p.name,
+        lat: p.location.lat,
+        lng: p.location.lng,
+        address: p.address,
+        description: p.description
+      }));
   };
   
   // AI行程生成逻辑
@@ -878,12 +897,27 @@ function ItineraryPage() {
 
       // Convert AI-generated plan to tripDetails format
       const formattedDays = [];
+      const destination = tripDetails?.tripInfo?.destination || '北京';
       if (plan.days && plan.days.length > 0) {
-        plan.days.forEach((day, dayIndex) => {
+        for (const [dayIndex, day] of plan.days.entries()) {
           const places = [];
 
           if (day.activities) {
+            const addresses = day.activities.map(act => act.location || act.name || destination);
+            let coords = [];
+
+            // 批量地理编码，失败时使用城市默认坐标
+            try {
+              coords = await batchGeocode(addresses, destination);
+            } catch (geoError) {
+              console.error('批量地理编码失败，使用城市默认坐标:', geoError);
+              coords = [];
+            }
+
             day.activities.forEach((activity, actIndex) => {
+              const geocoded = coords[actIndex];
+              const fallbackCoords = getCityDefaultCoords(destination);
+
               places.push({
                 id: dayIndex * 100 + actIndex + 1,
                 name: activity.name,
@@ -897,10 +931,10 @@ function ItineraryPage() {
                 address: activity.location || '',
                 openingHours: '9:00AM - 6:00PM',
                 images: [],
-                location: {
-                  lat: 39.9 + Math.random() * 0.1,
-                  lng: 116.4 + Math.random() * 0.1
-                }
+                location: geocoded && geocoded.lat && geocoded.lng ? {
+                  lat: geocoded.lat,
+                  lng: geocoded.lng
+                } : fallbackCoords
               });
 
               // Add to attractions list if it's a scenic spot
@@ -925,7 +959,7 @@ function ItineraryPage() {
             color: ['#FF5252', '#4CAF50', '#2196F3', '#FFC107', '#9C27B0'][dayIndex % 5],
             places: places
           });
-        });
+        }
       }
 
       // Update trip details with generated itinerary
@@ -1015,7 +1049,7 @@ function ItineraryPage() {
   const handleDaySelect = value => {
     setCurrentDayIndex(parseInt(value) + 1);
   };
-  
+
   // 显示AI优化模态框
   const showAiOptimizationModal = () => {
     setAiOptimizationModalVisible(true);
@@ -1350,42 +1384,41 @@ function ItineraryPage() {
           </Tabs>
                       </div>
                       
-        {/* 右侧地图区域 */}
-        <div className="trip-map" style={{ 
-          width: '40%', 
-                        backgroundColor: 'white',
-                        borderRadius: '10px',
-                          overflow: 'hidden'
-                        }}>
-          <div className="map-container" id="tripMap" style={{ 
-            height: 'calc(100% - 50px)',
-            backgroundImage: `url(${mapBackgroundUrl})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center'
-                        }}>
-            {/* 此处集成地图组件，显示行程路线和景点位置 */}
-                        </div>
-          <div className="map-controls" style={{ 
-            padding: '10px 15px', 
-            borderTop: '1px solid #f0f0f0',
-            display: 'flex',
-            alignItems: 'center'
-          }}>
-            <Radio.Group value={mapDisplayMode} onChange={handleMapModeChange}>
-              <Radio.Button value="daily">每日行程</Radio.Button>
-              <Radio.Button value="overview">全程概览</Radio.Button>
-            </Radio.Group>
-            <Select
-              placeholder="选择日期查看"
-              style={{ width: 150, marginLeft: 10 }}
-              onChange={handleDaySelect}
+        {/* 右侧地图区域 - 嵌入式可折叠地图 */}
+        <div className="trip-map" style={{ width: '40%' }}>
+          <Collapse defaultActiveKey={['map']} style={{ background: '#fff', borderRadius: 10 }}>
+            <Collapse.Panel
+              header="行程地图"
+              key="map"
+              extra={
+                <Radio.Group value={mapDisplayMode} onChange={handleMapModeChange} size="small">
+                  <Radio.Button value="daily">当日路线</Radio.Button>
+                  <Radio.Button value="all">全程总览</Radio.Button>
+                </Radio.Group>
+              }
             >
-              {tripDetails.itinerary.days.map((day, index) => (
-                <Option key={index} value={index}>第 {index + 1} 天</Option>
-              ))}
-            </Select>
-                        </div>
-                </div>
+              <div style={{ marginBottom: 12 }}>
+                <Select
+                  placeholder="选择日期查看"
+                  style={{ width: 180 }}
+                  value={Math.max(currentDayIndex - 1, 0)}
+                  onChange={handleDaySelect}
+                  disabled={!tripDetails.itinerary?.days?.length}
+                >
+                  {tripDetails.itinerary.days.map((day, index) => (
+                    <Option key={index} value={index}>第 {index + 1} 天</Option>
+                  ))}
+                </Select>
+              </div>
+              <div style={{ height: MAP_CONTAINER_HEIGHT }}>
+                <MapView
+                  activities={getMapActivities()}
+                  destination={tripDetails?.tripInfo?.destination}
+                />
+              </div>
+            </Collapse.Panel>
+          </Collapse>
+        </div>
               </div>
               
       {/* 底部建议区域 */}
@@ -1426,6 +1459,9 @@ function ItineraryPage() {
         </div>
       )}
       
+      {/* AI 旅行助手 */}
+      <AIChatDrawer tripDetails={tripDetails} />
+
       {/* AI优化行程模态框 */}
       <Modal
         title="AI行程优化"

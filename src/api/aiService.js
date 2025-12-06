@@ -1,31 +1,35 @@
 import axios from 'axios';
 
-// 硅基流动 API 配置 - 使用环境变量或默认值
-// 注意：生产环境应该使用环境变量，这里的硬编码仅作为临时后备方案
-const SILICONFLOW_API_KEY = process.env.REACT_APP_SILICONFLOW_API_KEY || 'sk-dmboumrbewxcexhzeegupvakiunvwsirrxabnpkcamnvogga';
-const SILICONFLOW_BASE_URL = process.env.REACT_APP_SILICONFLOW_BASE_URL || 'https://api.siliconflow.cn/v1';
-const SILICONFLOW_MODEL = process.env.REACT_APP_SILICONFLOW_MODEL || 'Qwen/Qwen2.5-72B-Instruct';
-// SiliconFlow chat/completions currently caps max_tokens at 4096, keep a buffer to avoid 400 errors
-const SILICONFLOW_COMPLETION_TOKEN_LIMIT = 3500;
-const SILICONFLOW_OPTIMIZATION_TOKEN_LIMIT = 3000;
+// DeepWisdom API 配置 - 必须通过环境变量提供，禁止硬编码密钥
+const DEEPWISDOM_API_KEY = process.env.REACT_APP_DEEPWISDOM_API_KEY || '';
+const DEEPWISDOM_BASE_URL = process.env.REACT_APP_DEEPWISDOM_BASE_URL || 'https://newapi.deepwisdom.ai/v1';
+const DEEPWISDOM_MODEL = process.env.REACT_APP_DEEPWISDOM_MODEL || 'gpt-4o';
+// DeepWisdom chat/completions 默认上限约4k tokens，这里留出安全缓冲
+const DEEPWISDOM_COMPLETION_TOKEN_LIMIT = 3500;
+const DEEPWISDOM_OPTIMIZATION_TOKEN_LIMIT = 3000;
+
+// 运行时校验环境变量，避免在构建产物中泄露密钥
+if (!DEEPWISDOM_API_KEY) {
+  console.error('【API密钥检查】缺少 REACT_APP_DEEPWISDOM_API_KEY 环境变量');
+}
 
 // 调试：打印环境变量 - 立即执行
 console.log('【环境变量调试】', {
-  hasEnvKey: !!process.env.REACT_APP_SILICONFLOW_API_KEY,
-  envKey: process.env.REACT_APP_SILICONFLOW_API_KEY ? 'sk-...' + process.env.REACT_APP_SILICONFLOW_API_KEY.slice(-10) : 'undefined',
-  actualKey: 'sk-...' + SILICONFLOW_API_KEY.slice(-10),
-  model: SILICONFLOW_MODEL,
-  baseUrl: SILICONFLOW_BASE_URL,
+  hasEnvKey: !!process.env.REACT_APP_DEEPWISDOM_API_KEY,
+  envKey: process.env.REACT_APP_DEEPWISDOM_API_KEY ? 'sk-...' + process.env.REACT_APP_DEEPWISDOM_API_KEY.slice(-10) : 'undefined',
+  actualKey: DEEPWISDOM_API_KEY ? 'sk-...' + DEEPWISDOM_API_KEY.slice(-10) : 'undefined',
+  model: DEEPWISDOM_MODEL,
+  baseUrl: DEEPWISDOM_BASE_URL,
   allEnvKeys: Object.keys(process.env).filter(key => key.startsWith('REACT_APP_'))
 });
 
-// 创建硅基流动客户端配置 - 修改为更明确的配置
+// 创建 DeepWisdom 客户端配置
 const openaiClient = axios.create({
-  baseURL: SILICONFLOW_BASE_URL,
+  baseURL: DEEPWISDOM_BASE_URL,
   timeout: 60000, // 60秒超时
   headers: {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${SILICONFLOW_API_KEY}`,
+    'Authorization': `Bearer ${DEEPWISDOM_API_KEY}`,
     'Accept': 'application/json'
   }
 });
@@ -135,9 +139,9 @@ export const generateTravelPlan = async (tripData) => {
 
     // 添加调试信息
     console.log('【调试】API配置:', {
-      apiKey: SILICONFLOW_API_KEY ? 'sk-...' + SILICONFLOW_API_KEY.slice(-10) : '未设置',
-      baseUrl: SILICONFLOW_BASE_URL,
-      model: SILICONFLOW_MODEL
+      apiKey: DEEPWISDOM_API_KEY ? 'sk-...' + DEEPWISDOM_API_KEY.slice(-10) : '未设置',
+      baseUrl: DEEPWISDOM_BASE_URL,
+      model: DEEPWISDOM_MODEL
     });
 
     console.log('【调试】请求参数:', {
@@ -217,7 +221,7 @@ export const generateTravelPlan = async (tripData) => {
     const response = await retryWithDelay(async () => {
       // 构建请求体
       const requestBody = {
-        model: SILICONFLOW_MODEL,
+        model: DEEPWISDOM_MODEL,
         messages: [
           {
             role: 'system',
@@ -229,7 +233,7 @@ export const generateTravelPlan = async (tripData) => {
           }
         ],
         temperature: 0.7,  // 降低随机性,提高准确性
-        max_tokens: SILICONFLOW_COMPLETION_TOKEN_LIMIT,  // 留出缓冲避免超出4096上限
+        max_tokens: DEEPWISDOM_COMPLETION_TOKEN_LIMIT,  // 留出缓冲避免超出4096上限
         top_p: 0.9,
         frequency_penalty: 0.3,  // 减少重复
         presence_penalty: 0.2,   // 鼓励多样性
@@ -238,17 +242,17 @@ export const generateTravelPlan = async (tripData) => {
 
       // 调试：打印完整请求体
       console.log('【调试】完整请求体:', JSON.stringify(requestBody, null, 2));
-      console.log('【调试】请求URL:', SILICONFLOW_BASE_URL + '/chat/completions');
-      console.log('【调试】Authorization头:', `Bearer sk-...${SILICONFLOW_API_KEY.slice(-10)}`);
+      console.log('【调试】请求URL:', DEEPWISDOM_BASE_URL + '/chat/completions');
+      console.log('【调试】Authorization头:', `Bearer sk-...${DEEPWISDOM_API_KEY.slice(-10)}`);
 
       // 使用直接的axios调用而不是预配置的客户端
       return await axios.post(
-        `${SILICONFLOW_BASE_URL}/chat/completions`,
+        `${DEEPWISDOM_BASE_URL}/chat/completions`,
         requestBody,
         {
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${SILICONFLOW_API_KEY}`,
+            'Authorization': `Bearer ${DEEPWISDOM_API_KEY}`,
             'Accept': 'application/json'
           },
           timeout: 60000
@@ -370,8 +374,8 @@ export const generateTravelPlan = async (tripData) => {
       });
 
       // 检查API密钥
-      const hasApiKey = SILICONFLOW_API_KEY && SILICONFLOW_API_KEY !== '';
-      console.error('【API密钥检查】', hasApiKey ? `存在 (sk-...${SILICONFLOW_API_KEY.slice(-10)})` : '缺失');
+      const hasApiKey = DEEPWISDOM_API_KEY && DEEPWISDOM_API_KEY !== '';
+      console.error('【API密钥检查】', hasApiKey ? `存在 (sk-...${DEEPWISDOM_API_KEY.slice(-10)})` : '缺失');
 
       // 根据错误类型提供更具体的提示
       let specificError = '请求格式错误';
@@ -382,10 +386,10 @@ export const generateTravelPlan = async (tripData) => {
           specificDetails.includes('unauthorized') || specificDetails.includes('Invalid API key') ||
           specificDetails.includes('Incorrect API key')) {
         specificError = 'API认证失败';
-        specificDetails = 'API密钥无效或格式不正确。请确保已正确配置 REACT_APP_SILICONFLOW_API_KEY 环境变量。';
+        specificDetails = 'API密钥无效或格式不正确。请确保已正确配置 REACT_APP_DEEPWISDOM_API_KEY 环境变量。';
       } else if (specificDetails.includes('model') || specificDetails.includes('Model')) {
         specificError = '模型配置错误';
-        specificDetails = `模型名称"${SILICONFLOW_MODEL}"可能不正确或暂不可用。`;
+        specificDetails = `模型名称"${DEEPWISDOM_MODEL}"可能不正确或暂不可用。`;
       } else if (specificDetails.includes('Invalid request') || specificDetails.includes('invalid')) {
         specificError = 'API请求格式错误';
         specificDetails = `API请求格式不正确：${specificDetails}`;
@@ -440,7 +444,7 @@ export const searchAttractionInfo = async (attractionName, location) => {
   try {
     const response = await retryWithDelay(async () => {
       return await openaiClient.post('/chat/completions', {
-        model: SILICONFLOW_MODEL,
+        model: DEEPWISDOM_MODEL,
         messages: [
           {
             role: 'system',
@@ -519,7 +523,7 @@ export const optimizeTripPlan = async (currentPlan, options) => {
     `;
     
     const response = await openaiClient.post('/chat/completions', {
-      model: SILICONFLOW_MODEL,
+      model: DEEPWISDOM_MODEL,
       messages: [
         {
           role: 'system',
@@ -531,7 +535,7 @@ export const optimizeTripPlan = async (currentPlan, options) => {
         }
       ],
       temperature: 0.7,
-      max_tokens: SILICONFLOW_OPTIMIZATION_TOKEN_LIMIT,  // 避免超过4096服务上限
+      max_tokens: DEEPWISDOM_OPTIMIZATION_TOKEN_LIMIT,  // 避免超过4096服务上限
       top_p: 0.9,
       stream: false
     });
@@ -583,7 +587,7 @@ export const askTravelQuestion = async (question, tripContext) => {
     }) : "无";
     
     const response = await openaiClient.post('/chat/completions', {
-      model: SILICONFLOW_MODEL,
+      model: DEEPWISDOM_MODEL,
       messages: [
         {
           role: 'system',

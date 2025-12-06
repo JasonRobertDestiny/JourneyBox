@@ -7,7 +7,6 @@ import { trackPhotoDownload } from '../api/unsplashService';
  */
 const UnsplashImage = ({ image, alt, size = 'regular', borderRadius = '8px', aspectRatio = '16/9', showAttribution = true, onLoad, onClick }) => {
   const [isLoaded, setIsLoaded] = useState(false);
-  const [hasError, setHasError] = useState(false);
   const [isDownloadTracked, setIsDownloadTracked] = useState(false);
   const [isLocalImage, setIsLocalImage] = useState(false);
   
@@ -40,8 +39,7 @@ const UnsplashImage = ({ image, alt, size = 'regular', borderRadius = '8px', asp
   // 图片加载完成处理
   const handleImageLoad = () => {
     setIsLoaded(true);
-    setHasError(false);
-    
+
     // 仅对非本地图片记录下载
     if (!isDownloadTracked && !isLocalImage && image && image.id) {
       // 记录下载统计（按照Unsplash要求）
@@ -56,8 +54,6 @@ const UnsplashImage = ({ image, alt, size = 'regular', borderRadius = '8px', asp
   
   // 图片加载失败处理
   const handleImageError = () => {
-    setHasError(true);
-    
     // 尝试使用本地备用图片
     setIsLocalImage(true);
   };

@@ -9,7 +9,7 @@
 ## ✨ 核心功能
 
 ### 🎯 智能行程生成
-- **AI驱动规划**: 使用硅基流动API（Qwen/Qwen2.5-72B-Instruct模型）生成高质量的旅行计划
+- **AI驱动规划**: 使用DeepWisdomAPI（gpt-4o模型）生成高质量的旅行计划
 - **真实地点推荐**: 自动推荐真实存在的景点、餐厅和酒店，包含详细地址和介绍
 - **个性化定制**: 根据用户的兴趣、预算和旅行风格定制专属行程
 - **动态优化**: 智能优化路线，合理安排时间，提升旅行体验
@@ -52,10 +52,10 @@ cp .env.example .env
 
 编辑 `.env` 文件：
 ```env
-# AI Service (SiliconFlow)
-REACT_APP_SILICONFLOW_API_KEY=你的硅基流动API密钥
-REACT_APP_SILICONFLOW_BASE_URL=https://api.siliconflow.cn/v1
-REACT_APP_SILICONFLOW_MODEL=Qwen/Qwen2.5-72B-Instruct
+# AI Service (DeepWisdom)
+REACT_APP_DEEPWISDOM_API_KEY=你的DeepWisdomAPI密钥
+REACT_APP_DEEPWISDOM_BASE_URL=https://newapi.deepwisdom.ai/v1
+REACT_APP_DEEPWISDOM_MODEL=gpt-4o
 
 # Image Service (Unsplash)
 REACT_APP_UNSPLASH_API_KEY=你的Unsplash API密钥
@@ -77,7 +77,7 @@ npm start
 - **Axios** - HTTP客户端
 
 ### AI与服务
-- **硅基流动 (SiliconFlow)** - Qwen/Qwen2.5-72B-Instruct大模型
+- **DeepWisdom API** - gpt-4o大模型
 - **Unsplash API** - 高质量图片服务
 
 ### 开发工具
@@ -144,10 +144,10 @@ npm start
 
 ## 📝 API配置
 
-### 硅基流动 (SiliconFlow)
-1. 访问 [SiliconFlow官网](https://siliconflow.cn)
+### DeepWisdom (DeepWisdom)
+1. 访问 [DeepWisdom官网](https://siliconflow.cn)
 2. 注册账号并获取API密钥
-3. 选择模型：Qwen/Qwen2.5-72B-Instruct
+3. 选择模型：gpt-4o
 4. 将密钥添加到 `.env` 文件
 
 ### Unsplash
@@ -173,7 +173,7 @@ npm start
 4. **配置环境变量**
    在Vercel项目设置中添加：
    ```
-   REACT_APP_SILICONFLOW_API_KEY=你的API密钥
+   REACT_APP_DEEPWISDOM_API_KEY=你的API密钥
    REACT_APP_UNSPLASH_API_KEY=你的API密钥
    ```
 
@@ -237,7 +237,7 @@ journey-box/
 
 **1. AI生成失败**
 - 检查API密钥是否正确配置
-- 确认模型名称：`Qwen/Qwen2.5-72B-Instruct`
+- 确认模型名称：`gpt-4o`
 - 注意API请求频率限制
 
 **2. 图片无法加载**
@@ -264,7 +264,7 @@ journey-box/
 
 ## 🙏 致谢
 
-- [硅基流动](https://siliconflow.cn) - 提供强大的AI模型服务
+- [DeepWisdom](https://siliconflow.cn) - 提供强大的AI模型服务
 - [Unsplash](https://unsplash.com) - 提供高质量的图片资源
 - [Ant Design](https://ant.design) - 优秀的UI组件库
 - [React](https://reactjs.org) - 强大的前端框架

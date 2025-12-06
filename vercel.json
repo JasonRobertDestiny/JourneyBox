@@ -9,9 +9,9 @@
     }
   ],
   "env": {
-    "REACT_APP_SILICONFLOW_API_KEY": "@siliconflow_api_key",
-    "REACT_APP_SILICONFLOW_BASE_URL": "@siliconflow_base_url",
-    "REACT_APP_SILICONFLOW_MODEL": "@siliconflow_model",
+    "REACT_APP_DEEPWISDOM_API_KEY": "@deepwisdom_api_key",
+    "REACT_APP_DEEPWISDOM_BASE_URL": "@deepwisdom_base_url",
+    "REACT_APP_DEEPWISDOM_MODEL": "@deepwisdom_model",
     "REACT_APP_UNSPLASH_API_KEY": "@unsplash_api_key"
   }
 }

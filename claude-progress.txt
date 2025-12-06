@@ -1,0 +1,40 @@
+## Session: 2025-12-06 综合优化与代码重构
+
+### 完成的工作
+
+**Phase 1: LLM服务迁移 (P0)**
+- DeepWisdom API (gpt-4o) 测试通过
+- aiService.js 已完成迁移
+- .env 更新为 DeepWisdom 配置
+- 移除硬编码API密钥
+
+**Phase 2: 地图功能集成 (P1)**
+- 坐标bug已修复：使用batchGeocode + getCityDefaultCoords降级
+- MapView组件已集成到ItineraryPage
+- 支持当日路线/全程总览切换
+- cityCoordinates.js 已创建（12个热门城市）
+
+**Phase 3: AI对话助手 (P1)**
+- FloatButton触发 + Drawer聊天界面
+- 4个快捷问题按钮
+- askTravelQuestion() 集成完成
+- 建议确认机制（Modal.confirm）
+- 绝不自动修改行程
+
+**Phase 4: 代码重构优化**
+- 提取AIChatDrawer组件（240行独立组件）
+- ItineraryPage从1690行减少到1516行（-174行）
+- 修复ESLint警告（UnsplashImage hasError, ItineraryPage isError）
+- 清理未使用的imports（MessageOutlined, UserOutlined等）
+- 新增loading skeleton和错误状态UI
+
+**构建结果**
+- npm run build 成功
+- 包体积：485KB (gzip)
+
+### 下一步
+- 部署到Vercel测试
+- 可选：继续拆分ItineraryPage（DayTimeline组件）
+
+### 已知问题
+- 无重大问题
