@@ -1,4 +1,5 @@
 import axios from 'axios';
+import JSON5 from 'json5';
 
 // DeepWisdom API 配置 - 必须通过环境变量提供，禁止硬编码密钥
 const DEEPWISDOM_API_KEY = process.env.REACT_APP_DEEPWISDOM_API_KEY || '';
@@ -39,105 +40,124 @@ const openaiClient = axios.create({
 let lastRequestTime = 0;
 const minRequestInterval = 5000; // 增加到5秒的最小请求间隔时间，避免频率限制
 
-// 修复截断的JSON - 尝试从后向前补全括号与字符串
+// 修复截断的JSON - 多策略修复
 const repairTruncatedJson = (str) => {
-  console.log('【截断修复】开始修复截断的JSON，原始长度:', str.length);
+  console.log('【截断修复】开始修复，原始长度:', str.length);
 
   let result = str.trim();
 
-  // 计算未闭合的括号
-  let braceCount = 0;
-  let bracketCount = 0;
-  let inString = false;
-  let escapeNext = false;
-
-  for (let i = 0; i < result.length; i++) {
-    const char = result[i];
-
-    if (escapeNext) {
-      escapeNext = false;
-      continue;
-    }
-
-    if (char === '\\') {
-      escapeNext = true;
-      continue;
-    }
-
-    if (char === '"') {
-      inString = !inString;
-      continue;
-    }
-
-    if (!inString) {
-      if (char === '{') braceCount++;
-      else if (char === '}') braceCount--;
-      else if (char === '[') bracketCount++;
-      else if (char === ']') bracketCount--;
-    }
+  // 策略1: 找到最后一个完整的活动对象，截断到那里
+  // 查找 "cost":"..." } 这样的完整活动结尾
+  const activityEndPattern = /"cost"\s*:\s*"[^"]*"\s*\}/g;
+  let lastCompleteActivity = -1;
+  let match;
+  while ((match = activityEndPattern.exec(result)) !== null) {
+    lastCompleteActivity = match.index + match[0].length;
   }
 
+  if (lastCompleteActivity > 0 && lastCompleteActivity < result.length - 10) {
+    console.log('【截断修复】找到最后完整活动位置:', lastCompleteActivity);
+    result = result.substring(0, lastCompleteActivity);
+  }
+
+  // 计算未闭合的括号
+  const countBrackets = (s) => {
+    let braces = 0, brackets = 0, inStr = false, esc = false;
+    for (let i = 0; i < s.length; i++) {
+      const c = s[i];
+      if (esc) { esc = false; continue; }
+      if (c === '\\') { esc = true; continue; }
+      if (c === '"') { inStr = !inStr; continue; }
+      if (!inStr) {
+        if (c === '{') braces++;
+        else if (c === '}') braces--;
+        else if (c === '[') brackets++;
+        else if (c === ']') brackets--;
+      }
+    }
+    return { braces, brackets, inStr };
+  };
+
+  let { braces, brackets, inStr } = countBrackets(result);
+
   // 如果在字符串中截断，关闭字符串
-  if (inString) {
+  if (inStr) {
     result += '"';
   }
 
   // 移除末尾不完整的属性定义
   result = result.replace(/,?\s*"[^"]*"\s*:\s*"?[^"{}[\],]*$/g, '');
-
-  // 移除末尾的逗号
   result = result.replace(/,\s*$/, '');
 
-  // 关闭所有未关闭的括号 - 先关闭数组再关闭对象
-  while (bracketCount > 0) {
-    result += ']';
-    bracketCount--;
-  }
-  while (braceCount > 0) {
-    result += '}';
-    braceCount--;
-  }
+  // 重新计算
+  ({ braces, brackets } = countBrackets(result));
 
-  console.log('【截断修复】修复后的JSON末尾100字:', result.slice(-100));
+  // 关闭所有未关闭的括号
+  while (brackets > 0) { result += ']'; brackets--; }
+  while (braces > 0) { result += '}'; braces--; }
 
-  // 验证修复是否成功
+  console.log('【截断修复】修复后末尾:', result.slice(-150));
+
+  // 验证修复
   try {
     JSON.parse(result);
-    console.log('【截断修复】修复成功！');
+    console.log('【截断修复】策略1成功！');
     return result;
   } catch (e) {
-    console.error('【截断修复】修复后仍然无效:', e.message);
-    // 尝试更激进的修复：移除最后一个不完整对象
-    const lastCompleteObject = result.lastIndexOf('},');
-    if (lastCompleteObject > 0) {
-      const truncated = result.substring(0, lastCompleteObject + 1);
-      // 重新计算并关闭括号
-      let bc = 0, brc = 0, ins = false, esc = false;
-      for (let i = 0; i < truncated.length; i++) {
-        const c = truncated[i];
-        if (esc) { esc = false; continue; }
-        if (c === '\\') { esc = true; continue; }
-        if (c === '"') { ins = !ins; continue; }
-        if (!ins) {
-          if (c === '{') bc++;
-          else if (c === '}') bc--;
-          else if (c === '[') brc++;
-          else if (c === ']') brc--;
+    console.log('【截断修复】策略1失败，尝试策略2...');
+  }
+
+  // 策略2: 找到 }] 或 }, 模式并截断
+  const patterns = [
+    /\}\s*\]\s*\}\s*$/,  // 完整的day结尾
+    /\}\s*,\s*$/,        // 对象后有逗号
+    /\}\s*\]\s*$/,       // 数组结尾
+  ];
+
+  for (const pattern of patterns) {
+    const testResult = str.trim();
+    const matches = testResult.match(/\}\s*[\],]/g);
+    if (matches && matches.length > 0) {
+      // 找到最后几个 } 的位置
+      let pos = testResult.length;
+      for (let i = 0; i < 3 && pos > 0; i++) {
+        pos = testResult.lastIndexOf('}', pos - 1);
+      }
+      if (pos > testResult.length * 0.5) {
+        let truncated = testResult.substring(0, pos + 1);
+        truncated = truncated.replace(/,\s*$/, '');
+        let { braces: b, brackets: br } = countBrackets(truncated);
+        while (br > 0) { truncated += ']'; br--; }
+        while (b > 0) { truncated += '}'; b--; }
+        try {
+          JSON.parse(truncated);
+          console.log('【截断修复】策略2成功！');
+          return truncated;
+        } catch (e2) {
+          // 继续尝试
         }
       }
-      let finalResult = truncated;
-      while (brc > 0) { finalResult += ']'; brc--; }
-      while (bc > 0) { finalResult += '}'; bc--; }
-      try {
-        JSON.parse(finalResult);
-        console.log('【截断修复】激进修复成功！');
-        return finalResult;
-      } catch (e2) {
-        console.error('【截断修复】激进修复也失败:', e2.message);
-      }
     }
-    return result;
   }
+
+  // 策略3: 暴力截断到最后完整的 },
+  const lastGoodEnd = str.lastIndexOf('},');
+  if (lastGoodEnd > str.length * 0.3) {
+    let truncated = str.substring(0, lastGoodEnd + 1);
+    let { braces: b, brackets: br } = countBrackets(truncated);
+    while (br > 0) { truncated += ']'; br--; }
+    while (b > 0) { truncated += '}'; b--; }
+    try {
+      JSON.parse(truncated);
+      console.log('【截断修复】策略3成功！');
+      return truncated;
+    } catch (e3) {
+      console.error('【截断修复】策略3失败:', e3.message);
+    }
+  }
+
+  console.error('【截断修复】所有策略都失败');
+  return result;
 };
 
 // JSON修复函数 - 尝试修复常见的JSON格式问题
@@ -264,7 +284,26 @@ const retryWithDelay = async (fn, retries = 1, delay = 10000) => {
 // 生成旅行计划
 export const generateTravelPlan = async (tripData) => {
   try {
-    const { destination, startDate, endDate, budget, interests, travelStyle, participants } = tripData;
+    // 计算默认日期（从明天开始，3天行程）
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const defaultStartDate = tomorrow.toISOString().split('T')[0];
+    const endDay = new Date(tomorrow);
+    endDay.setDate(endDay.getDate() + 2);
+    const defaultEndDate = endDay.toISOString().split('T')[0];
+
+    // 解构并应用默认值
+    const {
+      destination,
+      startDate = defaultStartDate,
+      endDate = defaultEndDate,
+      budget = 'medium',
+      interests = ['文化', '历史', '美食'],
+      travelStyle = 'relaxed',
+      participants = ['成人']
+    } = tripData;
+
+    console.log('【调试】处理后的日期:', { startDate, endDate, defaultStartDate, defaultEndDate });
 
     // 添加调试信息
     console.log('【调试】API配置:', {
@@ -288,20 +327,12 @@ export const generateTravelPlan = async (tripData) => {
     const end = new Date(endDate);
     const days = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1);
 
-    // 生成高质量的旅行计划提示词 - 严格JSON格式
-    const prompt = `为${destination}制定${days}天旅行计划。
+    // 生成高质量的旅行计划提示词 - 极简格式减少截断
+    const prompt = `${destination}${days}天游。${startDate}到${endDate}，${budget || '中等'}预算。
 
-需求: ${destination}, ${startDate}到${endDate}, ${budget || '中等'}预算, ${Array.isArray(interests) ? interests.join('/') : interests || '文化'}
+要求：返回纯JSON，每天2个活动，description限15字。
 
-【严格JSON格式要求】
-1. 直接输出JSON，以{开头以}结尾
-2. 不要添加markdown代码块标记
-3. 不要添加任何解释文字
-4. 每天最多3个活动，description最多30字
-5. 确保JSON完整闭合
-
-格式:
-{"overview":"概述","tips":"提示","days":[{"date":"${startDate}","dayOverview":"主题","activities":[{"time":"09:00","duration":"120","name":"名称","type":"景点","location":"地址","description":"描述","cost":"费用"}]}],"accommodation":"住宿","transportation":"交通"}`;
+{"overview":"一句话","tips":"一句话","days":[{"date":"${startDate}","dayOverview":"主题","activities":[{"time":"09:00","duration":"120","name":"景点","type":"景点","location":"地址","description":"15字内","cost":"费用"}]}],"accommodation":"住宿","transportation":"交通"}`;
 
     // 使用重试机制发送请求
     const response = await retryWithDelay(async () => {
@@ -311,18 +342,18 @@ export const generateTravelPlan = async (tripData) => {
         messages: [
           {
             role: 'system',
-            content: '你是专业旅行规划师。【关键要求】必须返回完整的JSON，不能截断！\n\n规则:\n1.只推荐真实景点餐厅\n2.返回标准JSON,无markdown\n3.description字段最多30字！\n4.每天最多3个活动\n5.必须包含完整的days数组和所有闭合括号\n\n【JSON格式】\n- 属性名标准格式: "name": "value"\n- 禁止装饰符号如 "-name-:"\n- 必须完整闭合所有括号'
+            content: '旅行规划师。返回纯JSON，无markdown。每天2个活动，description限15字。必须完整闭合所有括号。'
           },
           {
             role: 'user',
             content: prompt
           }
         ],
-        temperature: 0.7,  // 降低随机性,提高准确性
-        max_tokens: DEEPWISDOM_COMPLETION_TOKEN_LIMIT,  // 留出缓冲避免超出4096上限
-        top_p: 0.9,
-        frequency_penalty: 0.3,  // 减少重复
-        presence_penalty: 0.2,   // 鼓励多样性
+        temperature: 0.5,  // 降低随机性确保稳定输出
+        max_tokens: DEEPWISDOM_COMPLETION_TOKEN_LIMIT,
+        top_p: 0.85,
+        frequency_penalty: 0.2,
+        presence_penalty: 0.1,
         stream: false
       };
 
@@ -341,7 +372,7 @@ export const generateTravelPlan = async (tripData) => {
             'Authorization': `Bearer ${DEEPWISDOM_API_KEY}`,
             'Accept': 'application/json'
           },
-          timeout: 60000
+          timeout: 90000  // 90秒超时
         }
       );
     });
@@ -388,9 +419,9 @@ export const generateTravelPlan = async (tripData) => {
       const fixedContent = fixJsonString(content);
 
       try {
-        // 先尝试直接解析
-        const parsed = JSON.parse(fixedContent);
-        console.log('【JSON解析成功】数据结构:', Object.keys(parsed));
+        // 使用JSON5解析，容忍尾部逗号、单引号等问题
+        const parsed = JSON5.parse(fixedContent);
+        console.log('【JSON5解析成功】数据结构:', Object.keys(parsed));
         console.log('【JSON解析成功】days数量:', parsed.days?.length || 0);
 
         // 数据验证 - 确保必要字段存在
@@ -403,20 +434,35 @@ export const generateTravelPlan = async (tripData) => {
           };
         }
 
-        // 验证每天的活动数据完整性
-        for (let i = 0; i < parsed.days.length; i++) {
-          const day = parsed.days[i];
+        // 宽松验证：过滤掉不完整的天，只保留有活动的天
+        const validDays = parsed.days.filter((day, i) => {
           if (!day.activities || !Array.isArray(day.activities) || day.activities.length === 0) {
-            console.error(`【验证失败】第${i+1}天缺少活动数据`);
-            return {
-              error: 'AI生成的行程数据不完整',
-              errorDetails: `第${i+1}天缺少活动安排，请重试`,
-              canRetry: true
-            };
+            console.warn(`【验证警告】第${i+1}天缺少活动，已跳过`);
+            return false;
           }
+          // 过滤掉不完整的活动
+          day.activities = day.activities.filter(act => {
+            const hasRequired = act.name && act.time;
+            if (!hasRequired) {
+              console.warn('【验证警告】跳过不完整的活动:', act);
+            }
+            return hasRequired;
+          });
+          return day.activities.length > 0;
+        });
+
+        if (validDays.length === 0) {
+          console.error('【验证失败】没有有效的天数据');
+          return {
+            error: 'AI生成的行程数据不完整',
+            errorDetails: '没有有效的行程安排，请重试',
+            canRetry: true
+          };
         }
 
-        console.log('【验证成功】行程数据格式正确,共' + parsed.days.length + '天');
+        // 使用过滤后的数据
+        parsed.days = validDays;
+        console.log('【验证成功】行程数据格式正确,共' + parsed.days.length + '天(有效)');
         return parsed;
       } catch (parseError) {
         console.error('【JSON解析失败】', parseError.message);
@@ -599,7 +645,7 @@ export const searchAttractionInfo = async (attractionName, location) => {
       }
 
       try {
-        return JSON.parse(content);
+        return JSON5.parse(content);
       } catch (parseError) {
         console.error('解析AI返回的景点JSON失败:', parseError);
         console.error('原始内容:', content);
@@ -677,7 +723,7 @@ export const optimizeTripPlan = async (currentPlan, options) => {
       }
 
       try {
-        return JSON.parse(content);
+        return JSON5.parse(content);
       } catch (parseError) {
         console.error('解析AI返回的优化JSON失败:', parseError);
         console.error('原始内容:', content);

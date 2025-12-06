@@ -434,15 +434,25 @@ function ItineraryPage() {
         return;
       }
 
+      // 计算默认日期（从明天开始，3天行程）
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const defaultStart = tomorrow.toISOString().split('T')[0];
+      const endDay = new Date(tomorrow);
+      endDay.setDate(endDay.getDate() + 2);
+      const defaultEnd = endDay.toISOString().split('T')[0];
+
       const tripData = {
         destination: tripInfoData.destination,
-        startDate: tripInfoData.startDate,
-        endDate: tripInfoData.endDate,
+        startDate: tripInfoData.startDate || defaultStart,
+        endDate: tripInfoData.endDate || defaultEnd,
         budget: tripInfoData.budget || 'medium',
         interests: tripInfoData.interests || ['文化', '历史', '美食'],
         travelStyle: tripInfoData.travelStyle || 'relaxed',
         participants: tripInfoData.participants || ['成人']
       };
+
+      console.log('【生成数据】tripData:', tripData);
       
       // 判断是否强制使用离线模式
       const forceOfflineMode = localStorage.getItem('forceOfflineMode') === 'true';

@@ -92,6 +92,10 @@ const mockTripDetails = {
       id: 1,
       title: '北京三日游',
       destination: '北京',
+      startDate: '2025-01-15',
+      endDate: '2025-01-17',
+      budget: 'medium',
+      interests: ['文化', '历史', '美食'],
       travelType: 'self',
       notes: '这是一次北京文化之旅，主要参观北京的历史文化景点。'
     },

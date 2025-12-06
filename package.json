@@ -22,6 +22,7 @@
     "antd": "^5.15.0",
     "axios": "^1.6.7",
     "framer-motion": "^12.7.4",
+    "json5": "^2.2.3",
     "mcp-server-firecrawl": "^1.2.4",
     "moment": "^2.30.1",
     "react": "^18.2.0",
