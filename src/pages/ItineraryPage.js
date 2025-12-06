@@ -750,58 +750,43 @@ function ItineraryPage() {
   }
   
   return (
-    <div className="itinerary-page" style={{
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-      backgroundColor: '#F5F5F7',
-      minHeight: '100vh'
-              }}>
+    <div className="itinerary-page">
       <Header title={tripDetails.tripInfo.title} showBackButton onBack={handleBack} />
-      
+
       {/* 顶部操作栏 */}
-      <div className="trip-action-bar" style={{
-        backgroundColor: 'white',
-        padding: '15px 20px',
-        boxShadow: '0 1px 10px rgba(0, 0, 0, 0.05)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
+      <div className="trip-action-bar">
         <div className="trip-title">
-          <h1 style={{ margin: 0, fontSize: '20px', fontWeight: '600' }}>{tripDetails.tripInfo.title}</h1>
-          <div style={{ marginTop: '5px' }}>
+          <h1>{tripDetails.tripInfo.title}</h1>
+          <div style={{ marginTop: '8px' }}>
             <Tag color="blue">{tripDetails.tripInfo.startDate} - {tripDetails.tripInfo.endDate}</Tag>
             <Tag color="green">{tripDetails.tripInfo.destination}</Tag>
           </div>
         </div>
         <div className="trip-actions">
-          <Button 
+          <Button
             type="primary"
-            icon={<ThunderboltOutlined />} 
+            icon={<ThunderboltOutlined />}
             onClick={handleStartAiGeneration}
-            style={{ marginRight: '10px' }}
           >
             AI生成行程
           </Button>
-          <Button 
-            icon={<ThunderboltOutlined />} 
+          <Button
+            icon={<ThunderboltOutlined />}
             onClick={showAiOptimizationModal}
-            style={{ marginRight: '10px' }}
           >
             AI优化行程
           </Button>
-          <Button 
-            icon={<EditOutlined />} 
-            style={{ marginRight: '10px' }}
+          <Button
+            icon={<EditOutlined />}
           >
             编辑行程
           </Button>
-          <Button 
-            icon={<ShareAltOutlined />} 
-            style={{ marginRight: '10px' }}
+          <Button
+            icon={<ShareAltOutlined />}
           >
             分享
           </Button>
-          <Button 
+          <Button
             icon={<SaveOutlined />}
           >
             保存行程
@@ -810,74 +795,66 @@ function ItineraryPage() {
       </div>
 
       {/* 主内容区域 */}
-      <div className="trip-content" style={{
-                  display: 'flex',
-        height: 'calc(100vh - 120px)',
-        padding: '20px'
-                }}>
+      <div className="trip-content">
         {/* 左侧行程列表 */}
-        <div className="trip-timeline" style={{
-          width: '60%',
-          marginRight: '20px'
-        }}>
-          <Tabs defaultActiveKey="itinerary" style={{ backgroundColor: 'white', padding: '15px', borderRadius: '10px' }}>
+        <div className="trip-timeline">
+          <Tabs defaultActiveKey="itinerary">
             <TabPane tab="行程安排" key="itinerary">
               {tripDetails.itinerary.days.map((day, index) => (
-                <Card 
+                <Card
                   title={
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span>第 {index + 1} 天 ({day.date || '2023-06-0' + (index + 1)})</span>
-                      <span style={{ fontSize: '14px', color: '#8c8c8c' }}>
-                        {day.weather || (weatherInfo && weatherInfo.forecast[index] ? 
-                          `${weatherInfo.forecast[index].condition} ${weatherInfo.forecast[index].low}°C - ${weatherInfo.forecast[index].high}°C` : 
+                      <span>
+                        {day.weather || (weatherInfo && weatherInfo.forecast[index] ?
+                          `${weatherInfo.forecast[index].condition} ${weatherInfo.forecast[index].low}°C - ${weatherInfo.forecast[index].high}°C` :
                           '晴 18°C - 26°C')}
-                  </span>
-                      </div>
+                      </span>
+                    </div>
                   }
                   className="day-card"
                   key={index}
-                  style={{ marginBottom: '15px' }}
                 >
                   <Timeline>
                     {day.places.map((place, placeIndex) => (
-                      <Timeline.Item 
+                      <Timeline.Item
                         key={placeIndex}
                         color={place.type === 'attraction' ? 'blue' : place.type === 'restaurant' ? 'green' : 'red'}
                       >
-                        <div className="activity-item" style={{ marginBottom: '15px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                            <div className="activity-time" style={{ fontSize: '15px', color: '#1890ff', fontWeight: '500' }}>
+                        <div className="activity-item">
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div className="activity-time">
                               {place.timeStart} - {place.timeEnd}
-                  </div>
-                            <div className="activity-duration" style={{ fontSize: '14px', color: '#8c8c8c' }}>
+                            </div>
+                            <div className="activity-duration">
                               {place.duration || '约2小时'}
-                </div>
+                            </div>
                           </div>
-                          
-                          <div className="activity-title" style={{ fontSize: '16px', fontWeight: '600', marginBottom: '5px' }}>
+
+                          <div className="activity-title">
                             {place.name}
-                    </div>
-                          
-                          <div className="activity-desc" style={{ fontSize: '14px', color: '#666', marginBottom: '10px' }}>
+                          </div>
+
+                          <div className="activity-desc">
                             {place.description || '这是一个著名的旅游景点，代表了中国的历史文化...'}
-                      </div>
-                          
+                          </div>
+
                           {place.image && (
-                            <UnsplashImage 
-                              image={place.image} 
+                            <UnsplashImage
+                              image={place.image}
                               alt={`${place.name} photo`}
-                              width={150} 
-                              height={100} 
+                              width={150}
+                              height={100}
                               credit={place.imageCredit}
                             />
                           )}
-                          
-                          <div className="activity-actions" style={{ marginTop: '10px' }}>
+
+                          <div className="activity-actions">
                             <Button type="text" size="small" icon={<EditOutlined />} />
                             <Button type="text" size="small" icon={<DeleteOutlined />} />
                             <Button type="text" size="small" icon={<EnvironmentOutlined />}>在地图中显示</Button>
-                </div>
-              </div>
+                          </div>
+                        </div>
                       </Timeline.Item>
                     ))}
                   </Timeline>
@@ -1038,8 +1015,8 @@ function ItineraryPage() {
                       </div>
                       
         {/* 右侧地图区域 - 嵌入式可折叠地图 */}
-        <div className="trip-map" style={{ width: '40%' }}>
-          <Collapse defaultActiveKey={['map']} style={{ background: '#fff', borderRadius: 10 }}>
+        <div className="trip-map">
+          <Collapse defaultActiveKey={['map']}>
             <Collapse.Panel
               header="行程地图"
               key="map"
@@ -1076,37 +1053,31 @@ function ItineraryPage() {
               
       {/* 底部建议区域 */}
       {showAiSuggestions && (
-        <div className="trip-suggestions" style={{ 
-          padding: '0 20px 20px 20px'
-        }}>
-          <Card 
-            title="AI个性化建议" 
+        <div className="trip-suggestions">
+          <Card
+            title="AI个性化建议"
             extra={<Button type="link" onClick={() => setShowAiSuggestions(false)}>隐藏</Button>}
-            style={{ boxShadow: '0 2px 10px rgba(0, 0, 0, 0.05)' }}
           >
-            <div className="ai-suggestions" style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+            <div className="ai-suggestions">
               <Alert
                 message="更佳体验建议"
                 description={weatherInfo?.warning || "根据您的行程，建议将颐和园游玩安排在工作日，可以避开周末的人流高峰。"}
                 type="info"
                 showIcon
-                style={{ flex: '1', minWidth: '300px' }}
               />
               <Alert
                 message="当地美食推荐"
                 description="您的行程经过王府井附近，推荐品尝老北京小吃如豆汁、炒肝等传统小吃。"
                 type="success"
                 showIcon
-                style={{ flex: '1', minWidth: '300px' }}
               />
               <Alert
                 message="天气提醒"
                 description={`您出行期间${tripDetails.tripInfo.destination}可能有雨，建议携带雨具，并可考虑将室外活动调整至晴天。`}
                 type="warning"
                 showIcon
-                style={{ flex: '1', minWidth: '300px' }}
               />
-              </div>
+            </div>
           </Card>
           <UnsplashAttribution />
         </div>

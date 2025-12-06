@@ -3,10 +3,11 @@ import axios from 'axios';
 // DeepWisdom API 配置 - 必须通过环境变量提供，禁止硬编码密钥
 const DEEPWISDOM_API_KEY = process.env.REACT_APP_DEEPWISDOM_API_KEY || '';
 const DEEPWISDOM_BASE_URL = process.env.REACT_APP_DEEPWISDOM_BASE_URL || 'https://newapi.deepwisdom.ai/v1';
-const DEEPWISDOM_MODEL = process.env.REACT_APP_DEEPWISDOM_MODEL || 'gpt-4o';
-// 限制token数量确保响应完整
-const DEEPWISDOM_COMPLETION_TOKEN_LIMIT = 2000;
-const DEEPWISDOM_OPTIMIZATION_TOKEN_LIMIT = 4000;
+// 使用DeepSeek-V3.1模型 - 更快更便宜
+const DEEPWISDOM_MODEL = process.env.REACT_APP_DEEPWISDOM_MODEL || 'DeepSeek-V3.1';
+// DeepSeek-V3.1支持大token,增加限制确保完整响应
+const DEEPWISDOM_COMPLETION_TOKEN_LIMIT = 16000;
+const DEEPWISDOM_OPTIMIZATION_TOKEN_LIMIT = 16000;
 
 // 运行时校验环境变量，避免在构建产物中泄露密钥
 if (!DEEPWISDOM_API_KEY) {
@@ -26,7 +27,7 @@ console.log('【环境变量调试】', {
 // 创建 DeepWisdom 客户端配置
 const openaiClient = axios.create({
   baseURL: DEEPWISDOM_BASE_URL,
-  timeout: 60000, // 60秒超时
+  timeout: 120000, // 120秒超时 - DeepSeek需要更长时间
   headers: {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${DEEPWISDOM_API_KEY}`,
