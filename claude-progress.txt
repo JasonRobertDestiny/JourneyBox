@@ -1,3 +1,33 @@
+## Session: 2025-12-06 22:30 修复AI生成显示mock数据问题
+
+### 完成的工作
+
+**修复createTrip生成mock景点问题**
+- 问题: AI生成失败后，页面显示"北京景点一"等预生成的mock数据
+- 原因: `tripService.js:createTrip` 调用 `generatePlacesForDestination` 为新行程预生成mock景点
+- 解决: 修改createTrip初始化空的places数组，等待AI填充真实数据
+
+**tripService.js改动**
+- 第1419-1430行: 新行程初始化 `places: []` 而非mock景点
+
+**增强AI错误调试输出**
+- aiService.js增加更详细的JSON解析失败日志
+- 记录原始内容长度、前后500字符
+- 增加截断检测（检查JSON是否以}结尾）
+
+**GeneratingAnimation内联样式**
+- 添加wrapper和content的内联样式作为CSS fallback
+
+### Git提交
+- Commit: `f97b7f03` - "fix(tripService): remove mock places from new trips, enhance AI error debugging"
+
+### 下一步
+- 用户可以在浏览器控制台查看详细的AI响应调试信息
+- 如果JSON解析仍然失败，根据控制台日志进一步优化fixJsonString函数
+- 部署到服务器 82.156.165.90
+
+---
+
 ## Session: 2025-12-06 22:15 UI界面优化
 
 ### 完成的工作
