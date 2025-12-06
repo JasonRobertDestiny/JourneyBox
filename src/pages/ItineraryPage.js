@@ -183,12 +183,14 @@ function ItineraryPage() {
         if (shouldStartGeneration && data.tripInfo) {
           // 清除标记，避免重复触发
           localStorage.removeItem('startAiGeneration');
-          // 开始AI生成
+          // 开始AI生成 - 直接调用生成函数，避免stale closure问题
           setTimeout(() => {
             setIsGenerating(true);
             setGenerationStep(0);
-            console.log("【FIX-V3】开始生成行程", data.tripInfo);
-          }, 500); // 短暂延迟以确保UI已渲染
+            console.log("【FIX-V4】开始生成行程", data.tripInfo);
+            // 直接调用生成函数，传入data.tripInfo避免依赖tripDetails state
+            generateAiTripPlan(data.tripInfo);
+          }, 500);
         }
       } catch (error) {
         console.error('获取行程详情失败', error);
@@ -403,17 +405,18 @@ function ItineraryPage() {
       }));
   };
   
-  // AI行程生成逻辑
+  // AI行程生成逻辑 - 仅用于handleRegenerateClick等手动触发的场景
+  // 注意: URL参数generate=true的场景已在fetchTripDetails中直接调用generateAiTripPlan
   useEffect(() => {
-    // 模拟AI生成行程的过程
-    if (isGenerating) {
-      // 如果正在生成中但还没开始真正的生成，则调用生成函数
-      // 这样可以避免无限循环
-      if (generationStep === 0 && tripDetails) {
+    if (isGenerating && !isLoading) {
+      // 只有当isGenerating=true但isLoading=false时才触发
+      // 这避免了与fetchTripDetails中的直接调用重复
+      if (generationStep === 0 && tripDetails?.tripInfo) {
+        console.log('【FIX-V4】useEffect触发生成');
         generateAiTripPlan(tripDetails.tripInfo);
       }
     }
-  }, [isGenerating]);
+  }, [isGenerating, isLoading]);
   
   // 调用AI服务生成行程计划
   const generateAiTripPlan = async (tripInfo = null) => {
