@@ -8,8 +8,23 @@ function MapView({ activities, destination }) {
   const mapRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
 
+  // 第一个 useEffect：等待 DOM 挂载
   useEffect(() => {
+    // 确保 DOM 已挂载后再标记准备就绪
+    if (containerRef.current) {
+      setMapReady(true);
+    }
+  }, []);
+
+  // 第二个 useEffect：初始化地图（依赖 mapReady）
+  useEffect(() => {
+    // 等待 DOM 准备就绪
+    if (!mapReady || !containerRef.current) {
+      return;
+    }
+
     // 检查Amap是否加载
     if (!isAmapLoaded()) {
       console.error('Amap未加载');
@@ -29,10 +44,10 @@ function MapView({ activities, destination }) {
       return;
     }
 
-    // 初始化地图
+    // 初始化地图 - 使用 ref 而不是 ID 字符串
     try {
       const firstActivity = validActivities[0];
-      const map = initMap('map-container', {
+      const map = initMap(containerRef.current, {
         center: [firstActivity.lng, firstActivity.lat],
         zoom: 12
       });
@@ -77,19 +92,28 @@ function MapView({ activities, destination }) {
         mapRef.current = null;
       }
     };
-  }, [activities]);
+  }, [mapReady, activities]);
 
-  if (loading) {
-    return (
-      <div className="map-view loading">
-        <LoadingOutlined /> 加载地图中...
-      </div>
-    );
-  }
+  // 始终渲染 map-container，通过 CSS 控制显示
+  return (
+    <div className="map-view">
+      {/* 地图容器始终存在，确保 DOM 在 useEffect 执行前已挂载 */}
+      <div
+        id="map-container"
+        ref={containerRef}
+        className="map-container"
+        style={{ display: error ? 'none' : 'block' }}
+      ></div>
 
-  if (error) {
-    return (
-      <div className="map-view error">
+      {/* Loading 状态 */}
+      {loading && !error && (
+        <div className="map-loading-overlay">
+          <LoadingOutlined /> 加载地图中...
+        </div>
+      )}
+
+      {/* 错误/降级状态 */}
+      {error && (
         <div className="map-fallback">
           <EnvironmentOutlined style={{ fontSize: '48px', color: '#bfbfbf' }} />
           <p>地图暂不可用</p>
@@ -104,17 +128,15 @@ function MapView({ activities, destination }) {
             </ul>
           </div>
         </div>
-      </div>
-    );
-  }
+      )}
 
-  return (
-    <div className="map-view">
-      <div id="map-container" ref={containerRef} className="map-container"></div>
-      <div className="map-legend">
-        <span>🔵 按行程顺序标记</span>
-        <span>━━ 推荐路线</span>
-      </div>
+      {/* 图例 */}
+      {!loading && !error && (
+        <div className="map-legend">
+          <span>按行程顺序标记</span>
+          <span>推荐路线</span>
+        </div>
+      )}
     </div>
   );
 }
