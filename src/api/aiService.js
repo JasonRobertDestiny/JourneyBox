@@ -381,6 +381,7 @@ export const generateTravelPlan = async (tripData) => {
         // 先尝试直接解析
         const parsed = JSON.parse(fixedContent);
         console.log('【JSON解析成功】数据结构:', Object.keys(parsed));
+        console.log('【JSON解析成功】days数量:', parsed.days?.length || 0);
 
         // 数据验证 - 确保必要字段存在
         if (!parsed.days || !Array.isArray(parsed.days) || parsed.days.length === 0) {
@@ -409,13 +410,20 @@ export const generateTravelPlan = async (tripData) => {
         return parsed;
       } catch (parseError) {
         console.error('【JSON解析失败】', parseError.message);
-        console.error('【原始内容】', content.substring(0, 500));
-        console.error('【修复后内容】', fixedContent.substring(0, 500));
+        console.error('【原始内容长度】', content.length, '字符');
+        console.error('【原始内容前500字】', content.substring(0, 500));
+        console.error('【原始内容后500字】', content.substring(content.length - 500));
+        console.error('【修复后内容前500字】', fixedContent.substring(0, 500));
+        console.error('【修复后内容后500字】', fixedContent.substring(fixedContent.length - 500));
+
+        // 检查是否是JSON被截断的问题
+        const isTruncated = !fixedContent.trim().endsWith('}');
+        console.error('【截断检测】JSON可能被截断:', isTruncated);
 
         // 返回解析错误，让用户重试
         return {
           error: 'AI返回的数据格式异常',
-          errorDetails: `JSON解析失败: ${parseError.message}。请重试。`,
+          errorDetails: `JSON解析失败: ${parseError.message}${isTruncated ? '（响应可能被截断）' : ''}。请重试。`,
           canRetry: true
         };
       }

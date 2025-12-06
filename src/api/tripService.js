@@ -1416,7 +1416,7 @@ export const createTrip = (tripData) => {
   const endDate = new Date(tripData.endDate);
   const tripDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
 
-  // 根据目的地自动生成行程详情
+  // 初始化空行程 - 等待AI生成真实数据，不再使用mock景点
   const daysArray = [];
   const colors = ['#FF5252', '#2196F3', '#4CAF50', '#FFC107', '#9C27B0'];
 
@@ -1425,7 +1425,7 @@ export const createTrip = (tripData) => {
       day: i + 1,
       dailyTimeRange: { start: 9, end: 19 },
       color: colors[i % colors.length],
-      places: generatePlacesForDestination(tripData.destination, i + 1)
+      places: [] // 空数组，等待AI生成真实景点
     });
   }
 
