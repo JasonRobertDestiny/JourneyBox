@@ -1,0 +1,225 @@
+{
+  "project": "JourneyBox (旅迹盒子)",
+  "description": "AI智能旅行规划助手",
+  "created": "2025-12-06",
+  "last_updated": "2025-12-06",
+  "features": [
+    {
+      "id": "F001",
+      "category": "core",
+      "priority": "P0",
+      "description": "用户可以创建新的旅行计划",
+      "acceptance_criteria": [
+        "4步向导流程完整（目的地→日期→偏好→风格）",
+        "支持12个快选城市和自定义输入",
+        "日期选择器正确计算天数",
+        "提交后跳转到生成页面"
+      ],
+      "test_steps": [
+        "1. 访问 /create-trip",
+        "2. 选择目的地（如：杭州）",
+        "3. 选择日期范围（3天）",
+        "4. 选择兴趣标签和预算",
+        "5. 选择旅行风格",
+        "6. 点击生成，验证跳转到 /generating-trip"
+      ],
+      "passes": false,
+      "tested_at": null,
+      "notes": ""
+    },
+    {
+      "id": "F002",
+      "category": "core",
+      "priority": "P0",
+      "description": "AI生成真实可行的旅行计划",
+      "acceptance_criteria": [
+        "调用DeepWisdom API (gpt-4o)",
+        "返回结构化JSON（overview, days, tips）",
+        "每日行程包含具体景点、时间、费用",
+        "生成动画期间显示进度"
+      ],
+      "test_steps": [
+        "1. 完成F001创建流程",
+        "2. 等待生成动画完成",
+        "3. 验证跳转到 /itinerary/:id",
+        "4. 检查行程内容是否真实（非mock数据）",
+        "5. 检查控制台无JSON解析错误"
+      ],
+      "passes": false,
+      "tested_at": null,
+      "notes": "已移除mock数据fallback，纯LLM生成"
+    },
+    {
+      "id": "F003",
+      "category": "core",
+      "priority": "P0",
+      "description": "行程详情页展示完整日程",
+      "acceptance_criteria": [
+        "时间轴展示每日行程",
+        "景点卡片含时间/地点/描述/费用",
+        "支持展开/收起每日详情",
+        "支持实时编辑功能"
+      ],
+      "test_steps": [
+        "1. 访问已有行程 /itinerary/1",
+        "2. 验证时间轴正确显示",
+        "3. 点击展开某一天",
+        "4. 验证景点信息完整",
+        "5. 测试编辑功能"
+      ],
+      "passes": false,
+      "tested_at": null,
+      "notes": ""
+    },
+    {
+      "id": "F004",
+      "category": "integration",
+      "priority": "P1",
+      "description": "Unsplash图片集成",
+      "acceptance_criteria": [
+        "景点卡片显示相关图片",
+        "图片来源归属正确显示",
+        "无图片时显示默认占位图"
+      ],
+      "test_steps": [
+        "1. 访问行程详情页",
+        "2. 检查景点图片是否加载",
+        "3. 验证图片归属信息",
+        "4. 断网测试fallback"
+      ],
+      "passes": false,
+      "tested_at": null,
+      "notes": "需要REACT_APP_UNSPLASH_ACCESS_KEY"
+    },
+    {
+      "id": "F005",
+      "category": "integration",
+      "priority": "P1",
+      "description": "高德地图集成",
+      "acceptance_criteria": [
+        "行程页面显示地图面板",
+        "景点标记在地图上",
+        "点击景点可定位"
+      ],
+      "test_steps": [
+        "1. 访问行程详情页",
+        "2. 展开地图面板",
+        "3. 验证景点标记显示",
+        "4. 点击标记验证信息窗口"
+      ],
+      "passes": false,
+      "tested_at": null,
+      "notes": "需要REACT_APP_AMAP_API_KEY"
+    },
+    {
+      "id": "F006",
+      "category": "user",
+      "priority": "P1",
+      "description": "用户登录/注册",
+      "acceptance_criteria": [
+        "支持用户名密码注册",
+        "支持登录/登出",
+        "登录状态持久化"
+      ],
+      "test_steps": [
+        "1. 访问 /auth",
+        "2. 注册新用户",
+        "3. 登出后重新登录",
+        "4. 刷新页面验证状态保持"
+      ],
+      "passes": false,
+      "tested_at": null,
+      "notes": "当前为Mock实现，密码明文存储"
+    },
+    {
+      "id": "F007",
+      "category": "user",
+      "priority": "P2",
+      "description": "行程历史记录",
+      "acceptance_criteria": [
+        "首页显示用户行程列表",
+        "支持查看历史行程",
+        "刷新后数据不丢失"
+      ],
+      "test_steps": [
+        "1. 创建一个新行程",
+        "2. 返回首页验证列表显示",
+        "3. 刷新页面验证数据持久化",
+        "4. 点击行程卡片进入详情"
+      ],
+      "passes": false,
+      "tested_at": null,
+      "notes": "已实现localStorage持久化"
+    },
+    {
+      "id": "F008",
+      "category": "community",
+      "priority": "P2",
+      "description": "社区分享功能",
+      "acceptance_criteria": [
+        "可以发布旅行帖子",
+        "可以浏览社区帖子列表",
+        "可以查看帖子详情"
+      ],
+      "test_steps": [
+        "1. 访问 /community",
+        "2. 浏览帖子列表",
+        "3. 点击帖子查看详情",
+        "4. 创建新帖子"
+      ],
+      "passes": false,
+      "tested_at": null,
+      "notes": "Mock实现"
+    }
+  ],
+  "tech_debt": [
+    {
+      "id": "TD001",
+      "severity": "P0",
+      "description": "API密钥硬编码在aiService.js",
+      "impact": "安全风险，密钥已泄露至代码库",
+      "file": "src/api/aiService.js:5",
+      "resolved": false
+    },
+    {
+      "id": "TD002",
+      "severity": "P0",
+      "description": "用户密码明文存储在localStorage",
+      "impact": "安全风险，用户凭证可被窃取",
+      "file": "src/api/userService.js:93-97",
+      "resolved": false
+    },
+    {
+      "id": "TD003",
+      "severity": "P1",
+      "description": "ItineraryPage.js过大(63KB, 1479行)",
+      "impact": "维护困难，20+个useState",
+      "file": "src/pages/ItineraryPage.js",
+      "resolved": false
+    },
+    {
+      "id": "TD004",
+      "severity": "P1",
+      "description": "Unsplash API调用无缓存",
+      "impact": "每个景点单独请求，性能差",
+      "file": "src/api/unsplashService.js",
+      "resolved": false
+    },
+    {
+      "id": "TD005",
+      "severity": "P2",
+      "description": "localStorage使用散乱，6处不同key",
+      "impact": "状态管理混乱，可能冲突",
+      "file": "multiple files",
+      "resolved": false
+    },
+    {
+      "id": "TD006",
+      "severity": "P2",
+      "description": "tripService.js中1258行Mock数据",
+      "impact": "代码臃肿，难以维护",
+      "file": "src/api/tripService.js",
+      "resolved": false
+    }
+  ]
+}

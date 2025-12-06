@@ -1,3 +1,30 @@
+## Session: 2025-12-07 00:15 初始化双Agent架构
+
+### 完成的工作
+
+**全局CLAUDE.md增强**
+- 更新 `~/.claude/CLAUDE.md` 的Long-Running Agent Workflow部分
+- 增加Initializer Agent + Coding Agent架构说明
+- 增加feature_list.json增强格式（含acceptance_criteria, test_steps, tech_debt）
+- 增加会话检查清单和功能验证铁律
+
+**JourneyBox项目初始化**
+- 创建 `init.sh` - 环境检查脚本（Node/依赖/环境变量/构建/端口）
+- 创建 `feature_list.json` - 8个功能需求 + 6个技术债务
+
+### 文件清单
+```
+init.sh           # 开发环境初始化脚本
+feature_list.json # 功能清单（F001-F008）+ 技术债务（TD001-TD006）
+```
+
+### 下一步
+- 运行 `bash init.sh` 验证环境
+- 从feature_list.json中选择一个功能进行端到端测试
+- 逐个验证功能，更新passes字段
+
+---
+
 ## Session: 2025-12-06 22:30 修复AI生成显示mock数据问题
 
 ### 完成的工作
